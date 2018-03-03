@@ -7,7 +7,7 @@ Requirements -- Linux
 
 To run in the background you need systemd and *lingering* enabled::
 
-   sudo loginctl enable-linger $USER
+  sudo loginctl enable-linger $USER
 
 On some systems, such as the Raspberry Pi, you need to reboot for this to take effect.
 
@@ -21,28 +21,28 @@ On Ubuntu/Debian/Raspian
 
 Do::
 
-   sudo apt-get install gcc libssl-dev python3-pip python3-dev whiptail inetutils-ping
+  sudo apt-get update
+  sudo apt-get install -y gcc libssl-dev python3-pip python3-dev whiptail inetutils-ping
 
-On some Ubuntu systems, it will complain about missing packages: you first need to enable
+On some Ubuntu systems, it will complain about missing packages: you first need to make sure you have
 the ``universe`` repository::
 
-   sudo add-apt-repository universe
-   sudo apt-get update
+ sudo apt-get install -y software-properties-common
+ sudo add-apt-repository universe
 
 NOTE: you *don't* need to upgrade the system: the issue here is about the *range* of packages
 available, not how new/old they are.
 
-And further, on some Ubuntu systems, ``add-apt-repository`` isn't available, so first do::
+Fedora
+======
 
-   sudo apt-get install software-properties-common python-software-properties
+This has been tested on Fedora 27::
 
-CentOS/RedHat/Fedora
-====================
+ sudo yum install -y gcc openssl-devel python3-pip python3-devel newt
 
-::
 
-   sudo yum install -y epel-release
-   sudo yum install gcc openssl-devel python34-pip python34-devel newt
+Other Distros
+=============
 
 On other distros you need to check the documentation for how to install these packages, the names should be very similar.
   
@@ -51,11 +51,7 @@ Installation
 
 ::
 
-   pip3 install https://github.com/ihaywood3/DEXBot/archive/stable.zip
-
-If you add the ``--user`` flag to this command, the binaries of
-``dexbot`` and ``uptick`` are located in ``~/.local/bin``.
-Otherwise they should be globally reachable.
+  sudo -H pip3 install https://github.com/ihaywood3/DEXBot/archive/stable.zip
 
 If you want the latest development version (which may not be tested at all), use git to download::
 
