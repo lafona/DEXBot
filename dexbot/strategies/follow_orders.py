@@ -131,7 +131,7 @@ class Strategy(BaseStrategy):
                 (self.balance(
                     self.market["base"]),
                     self.bot["wall"] *
-                    buy_price))
+                    newprice))
             return False
 
         amt = Amount(self.bot["wall"], self.market["quote"])
