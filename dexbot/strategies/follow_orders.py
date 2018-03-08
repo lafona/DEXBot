@@ -98,7 +98,8 @@ class Strategy(BaseStrategy):
         # Canceling orders
         self.cancel_all()
         # record balances
-        self.record_balances(newprice)
+        if hasattr(self, "record_balances"):
+            self.record_balances(newprice)
 
         myorders = {}
 
