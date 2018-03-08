@@ -124,7 +124,8 @@ class DatabaseWorker(threading.Thread):
 
     def run(self):
         for func, args, token in iter(self.task_queue.get, None):
-            args = args + (token,)
+            if token is not None:
+                args = args+(token,)
             func(*args)
 
     def get_result(self, token):
@@ -150,8 +151,8 @@ class DatabaseWorker(threading.Thread):
 
     def execute_noreturn(self, func, *args):
         self.task_queue.put((func, args, None))
-
-    def set_item(self, category, key, value, token):
+        
+    def set_item(self, category, key, value):
         value = json.dumps(value)
         e = self.session.query(Config).filter_by(
             category=category,
@@ -175,7 +176,7 @@ class DatabaseWorker(threading.Thread):
             result = json.loads(e.value)
         self.set_result(token, result)
 
-    def del_item(self, category, key, token):
+    def del_item(self, category, key):
         e = self.session.query(Config).filter_by(
             category=category,
             key=key
@@ -197,7 +198,7 @@ class DatabaseWorker(threading.Thread):
         result = [(e.key, e.value) for e in es]
         self.set_result(token, result)
 
-    def clear(self, category, token):
+    def clear(self, category):
         rows = self.session.query(Config).filter_by(
             category=category
         )
@@ -205,7 +206,7 @@ class DatabaseWorker(threading.Thread):
             self.session.delete(row)
             self.session.commit()
 
-    def save_journal(self, category, amounts, token):
+    def save_journal(self, category, amounts, token=None):
         now_t = datetime.datetime.now()
         for key, amount in amounts:
             e = Journal(key=key, category=category, amount=amount, stamp=now_t)
@@ -233,7 +234,7 @@ class DatabaseWorker(threading.Thread):
         self.set_result(token, r.all())
 
 
-    def save_log(self, category, severity, message, created, token):
+    def save_log(self, category, severity, message, created, token=None):
         e = Log(category=category,severity=severity,message=message,stamp=created)
         self.session.add(e)
         self.session.commit()

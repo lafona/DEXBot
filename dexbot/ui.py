@@ -2,7 +2,6 @@ import os
 import sys
 import click
 import logging, logging.config
-import yaml
 from datetime import datetime
 from bitshares.price import Price
 from prettytable import PrettyTable
@@ -122,7 +121,7 @@ def configfile(f):
     @click.pass_context
     def new_func(ctx, *args, **kwargs):
         try:
-            ctx.config = yaml.load(open(ctx.obj["configfile"]))
+            ctx.config = yaml.safe_load(open(ctx.obj["configfile"]))
         except FileNotFoundError:
             alert("Looking for the config file in %s\nNot found!\nTry running 'dexbot configure' to generate\n" % ctx.obj['configfile'])
             sys.exit(78) # 'configuation error' in sysexits.h
@@ -170,7 +169,7 @@ def alert(msg):
         click.style("Alert", fg="red") +
         "] " + msg
     )
-
+5B
 
 def confirmalert(msg):
     return click.confirm(

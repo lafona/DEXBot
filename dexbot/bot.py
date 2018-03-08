@@ -180,6 +180,8 @@ class BotInfrastructure(threading.Thread):
         self.notify.listen()
 
     def stop(self,*args):
+        for bot in self.bots:
+            self.bots[bot].cancel_all()
         self.notify.websocket.close()
 
     def remove_bot(self):

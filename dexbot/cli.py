@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-import yaml
 import logging
 import os
 # we need to do this before importing click
