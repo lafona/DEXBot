@@ -97,6 +97,9 @@ class Strategy(BaseStrategy):
         step2 = self.bot['staggerspread'] / 100.0 * newprice
         # Canceling orders
         self.cancel_all()
+        # record balances
+        if hasattr(self, "record_balances"):
+            self.record_balances(newprice)
 
         myorders = {}
 
@@ -188,14 +191,28 @@ class Strategy(BaseStrategy):
             if repr(data['quote']['asset']['id']) == repr(
                     self.market['quote']['id']):
                 self.log.debug("quote['id'] = quote['id']")
-            self.reassess()
+            self.reassess(data)
 
-    def reassess(self):
+    def reassess(self, market_data=None):
         # sadly no smart way to match a FilledOrder to an existing order
         # even price-matching won't work as we can buy at a better price than we asked for
         # so look at what's missing
         self.log.debug("reassessing...")
         self.account.refresh()
+        newprice = self.recalculate_price(market_data)
+        if newprice is not None:
+            if self.updateorders(newprice):
+                time.sleep(1)
+                self.reassess(None)  # check if order has been filled while we were busy entering orders
+        else:
+            self.log.debug("no action")
+
+
+    def recalculate_price(self, market_data=None):
+        """Recalculate the base price according to the bot's rules
+        (descendants encouraged to override)
+        Returning None indicates no new orders
+        """
         still_open = set(i['id'] for i in self.account.openorders)
         self.log.debug("still_open: %r" % still_open)
         if len(still_open) == 0:
@@ -203,10 +220,7 @@ class Strategy(BaseStrategy):
             t = self.market.ticker()
             bid = float(t['highestBid'])
             ask = float(t['lowestAsk'])
-            self.updateorders(bid + ((ask - bid) * self.bot['start'] / 100.0))
-            time.sleep(1)
-            self.reassess()
-            return
+            return bid + ((ask - bid) * self.bot['start'] / 100.0)
         missing = set(self['myorders'].keys()) - still_open
         if missing:
             found_price = 0.0
@@ -216,8 +230,6 @@ class Strategy(BaseStrategy):
                 if diff > highest_diff:
                     found_price = self['myorders'][i]
                     highest_diff = diff
-            if self.updateorders(found_price):
-                time.sleep(1)
-                self.reassess()  # check if order has been filled while we were busy entering orders
+            return found_price
         else:
-            self.log.debug("nothing missing, no action")
+            return None
