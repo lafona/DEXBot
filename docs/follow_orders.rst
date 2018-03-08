@@ -40,18 +40,29 @@ Same in reverse: stop running if prices go below this value.
 Start
 -----
 
+<<<<<<< HEAD
 The initial price, as a percentage of the spread between the highest bid and lowest ask. So "0" means
 the highest bid, "100" means the lowest ask, 50 means the midpoint between them, and so on.
 
 *Important*: you need to look at the market and get a sense of its orderbook for setting this,
 justing setting "50" blind can lead to stupid prices especially in illiquid markets.
+=======
+The initial base price, as a percentage of the settlement price. So "103" here means an initial base price 3%
+above the settlement price. (Yes I know not all BTS markets have a settlement price, currently the bot won't
+work in those)
+>>>>>>> followorders
 
 Reset
 -----
 
 Normally the bot checks if it has previously placed orders in the market and uses those. If true,
+<<<<<<< HEAD
 this option forces the bot to cancel any existing orders when it starts up, and re-calculate
 the starting price as above.
+=======
+this option forces the bot to cancel any existing orders when it starts up, and calculate
+the starting price from the settlement price as above.
+>>>>>>> followorders
 
 Staggers
 --------

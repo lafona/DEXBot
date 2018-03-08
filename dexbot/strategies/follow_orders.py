@@ -51,7 +51,7 @@ class Strategy(BaseStrategy):
                 "reset",
                 "bool",
                 False,
-                "bot will alwys reset orders on start",
+                "bot will always reset orders on start",
                 (0.0,
                  None)),
             ConfigElement(
@@ -106,22 +106,21 @@ class Strategy(BaseStrategy):
         if newprice < self.bot["min"]:
             self.disabled = True
             self.log.critical(
-                "Price %f is below minimum %f" %
-                (newprice, self.bot["min"]))
+                "Price {} is below minimum {}".format(
+                    newprice, self.bot["min"]))
             return False
         if newprice > self.bot["max"]:
             self.disabled = True
             self.log.critical(
-                "Price %f is above maximum %f" %
-                (newprice, self.bot["max"]))
+                "Price {} is above maximum {}".format(
+                    newprice, self.bot["max"]))
             return False
 
         if float(self.balance(self.market["quote"])
                  ) < self.bot["wall"] * self.bot['staggers']:
             self.log.critical(
-                "insufficient sell balance: %r (needed %f)" %
-                (self.balance(
-                    self.market["quote"]),
+                "insufficient sell balance: {} (needed {})".format(
+                    self.balance(self.market["quote"]),
                     self.bot["wall"]))
             self.disabled = True  # now we get no more events
             return False
@@ -130,11 +129,9 @@ class Strategy(BaseStrategy):
                 self.bot["wall"] * self.bot['staggers']:
             self.disabled = True
             self.log.critical(
-                "insufficient buy balance: %r (need: %f)" %
-                (self.balance(
-                    self.market["base"]),
-                    self.bot["wall"] *
-                    newprice))
+                "insufficient buy balance: {} (need: {})".format(
+                    self.balance(self.market["base"]),
+                    self.bot["wall"] * newprice))
             return False
 
         amt = Amount(self.bot["wall"], self.market["quote"])
@@ -184,8 +181,9 @@ class Strategy(BaseStrategy):
         if isinstance(
                 data, FilledOrder) and data['account_id'] == self.account['id']:
             self.log.debug(
-                "data['quote']['asset'] = %r self.market['quote'] = %r" %
-                (data['quote']['asset'], self.market['quote']))
+                "data['quote']['asset'] = {} self.market['quote'] = {}".format(
+                    data['quote']['asset'],
+                    self.market['quote']))
             if data['quote']['asset'] == self.market['quote']:
                 self.log.debug("Quote = quote")
             if repr(data['quote']['asset']['id']) == repr(
@@ -214,7 +212,7 @@ class Strategy(BaseStrategy):
         Returning None indicates no new orders
         """
         still_open = set(i['id'] for i in self.account.openorders)
-        self.log.debug("still_open: %r" % still_open)
+        self.log.debug("still_open: {}".format(still_open))
         if len(still_open) == 0:
             self.log.info("no open orders, recalculating the startprice")
             t = self.market.ticker()
