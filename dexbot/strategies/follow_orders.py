@@ -216,6 +216,14 @@ class Strategy(BaseStrategy):
         if len(still_open) == 0:
             self.log.info("no open orders, recalculating the startprice")
             t = self.market.ticker()
+            if t['highestBid'] is None:
+                self.log.critical("no bid price available")
+                self.disabled = True
+                return None
+            if t['lowestAsk'] is None or t['lowestAsk'] == 0.0:
+                self.log.critical("no ask price available")
+                self.disabled = True
+                return None
             bid = float(t['highestBid'])
             ask = float(t['lowestAsk'])
             return bid + ((ask - bid) * self.bot['start'] / 100.0)
