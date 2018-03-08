@@ -3,7 +3,7 @@ Follow Orders Strategy
 **********************
 
 This strategy places a buy and a sell walls into a specific market.
-It buys below a base price, and sells aboe the base price.
+It buys below a base price, and sells above the base price.
 
 It then reacts to orders filled (hence the name), when one order is
 completely filled, new walls are constructed using the filled order
