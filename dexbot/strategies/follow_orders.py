@@ -107,13 +107,13 @@ class Strategy(BaseStrategy):
             self.log.critical(
                 "Price %f is below minimum %f" %
                 (newprice, self.bot["min"]))
-            return
+            return False
         if newprice > self.bot["max"]:
             self.disabled = True
             self.log.critical(
                 "Price %f is above maximum %f" %
                 (newprice, self.bot["max"]))
-            return
+            return False
 
         if float(self.balance(self.market["quote"])
                  ) < self.bot["wall"] * self.bot['staggers']:
@@ -123,7 +123,7 @@ class Strategy(BaseStrategy):
                     self.market["quote"]),
                     self.bot["wall"]))
             self.disabled = True  # now we get no more events
-            return
+            return False
 
         if self.balance(self.market["base"]) < newprice * \
                 self.bot["wall"] * self.bot['staggers']:
@@ -134,7 +134,7 @@ class Strategy(BaseStrategy):
                     self.market["base"]),
                     self.bot["wall"] *
                     buy_price))
-            return
+            return False
 
         amt = Amount(self.bot["wall"], self.market["quote"])
 
@@ -177,6 +177,8 @@ class Strategy(BaseStrategy):
         # ret = self.execute() this doesn't seem to work reliably
         # self.safe_dissect(ret,"execute")
 
+        return True
+    
     def onmarket(self, data):
         if isinstance(
                 data, FilledOrder) and data['account_id'] == self.account['id']:
@@ -216,8 +218,8 @@ class Strategy(BaseStrategy):
                 if diff > highest_diff:
                     found_price = self['myorders'][i]
                     highest_diff = diff
-            self.updateorders(found_price)
-            time.sleep(1)
-            self.reassess()  # check if order has been filled while we were busy entering orders
+            if self.updateorders(found_price):
+                time.sleep(1)
+                self.reassess()  # check if order has been filled while we were busy entering orders
         else:
             self.log.debug("nothing missing, no action")
