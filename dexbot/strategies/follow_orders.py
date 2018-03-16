@@ -20,12 +20,12 @@ class Strategy(BaseStrategy):
                 (0,
                  100)),
             ConfigElement(
-                "wall",
+                "wall_percent",
                 "float",
-                0.0,
-                "the default amount to buy/sell, in quote",
-                (0.0,
-                 None)),
+                0,
+                "the default amount to buy/sell, as a percentage of the balance",
+                (0,
+                 100)),
             ConfigElement(
                 "max",
                 "float",
@@ -66,8 +66,14 @@ class Strategy(BaseStrategy):
                 "float",
                 5,
                 "Percentage difference between staggered orders",
-                (1,
-                 100))
+                (0,
+                 100)),
+            ConfigElement(
+                'bias',
+                'float',
+                0,
+                "Percentage of bias higher or lower (negative is lower) from the baseprice",
+                (-100,100))
         ]
 
     def safe_dissect(self, thing, name):
@@ -92,12 +98,14 @@ class Strategy(BaseStrategy):
         """ Update the orders
         """
         self.log.info("Replacing orders. Baseprice is %f" % newprice)
-        self['price'] = newprice
         step1 = self.bot['spread'] / 200.0 * newprice
         step2 = self.bot['staggerspread'] / 100.0 * newprice
+        # apply bias
+        newprice = (100.0 + self.bot['bias']) / 100.0 * newprice
+        self['price'] = newprice
         # Canceling orders
         self.cancel_all()
-        # record balances
+        # record balances (on forks with have this feature)
         if hasattr(self, "record_balances"):
             self.record_balances(newprice)
 
@@ -116,37 +124,18 @@ class Strategy(BaseStrategy):
                     newprice, self.bot["max"]))
             return False
 
-        if float(self.balance(self.market["quote"])
-                 ) < self.bot["wall"] * self.bot['staggers']:
-            self.log.critical(
-                "insufficient sell balance: {} (needed {})".format(
-                    self.balance(self.market["quote"]),
-                    self.bot["wall"]))
-            self.disabled = True  # now we get no more events
-            return False
-
-        if self.balance(self.market["base"]) < newprice * \
-                self.bot["wall"] * self.bot['staggers']:
-            self.disabled = True
-            self.log.critical(
-                "insufficient buy balance: {} (need: {})".format(
-                    self.balance(self.market["base"]),
-                    self.bot["wall"] * newprice))
-            return False
-
-        amt = Amount(self.bot["wall"], self.market["quote"])
-
+        sell_wall = self.balance(self.market['quote']) * self.bot['wall_percent'] / 100.0
         sell_price = newprice + step1
         for i in range(0, self.bot['staggers']):
             self.log.info("SELL {amt} at {price:.4g} {base}/{quote} (= {inv_price:.4g} {quote}/{base})".format(
-                amt=repr(amt),
+                amt=repr(sell_wall),
                 price=sell_price,
                 inv_price=1 / sell_price,
                 quote=self.market['quote']['symbol'],
                 base=self.market['base']['symbol']))
             ret = self.market.sell(
                 sell_price,
-                amt,
+                sell_wall,
                 account=self.account,
                 returnOrderId="head"
             )
@@ -154,17 +143,18 @@ class Strategy(BaseStrategy):
             myorders[ret['orderid']] = sell_price
             sell_price += step2
 
+        buy_wall = Amount(float(self.balance(self.market['base']) * self.bot['wall_percent'] / 100.00 / newprice),self.market['quote'])
         buy_price = newprice - step1
         for i in range(0, self.bot['staggers']):
             self.log.info("BUY {amt} at {price:.4g} {base}/{quote} (= {inv_price:.4g} {quote}/{base})".format(
-                amt=repr(amt),
+                amt=repr(buy_wall),
                 price=buy_price,
                 inv_price=1 / buy_price,
                 quote=self.market['quote']['symbol'],
                 base=self.market['base']['symbol']))
             ret = self.market.buy(
                 buy_price,
-                amt,
+                buy_wall,
                 account=self.account,
                 returnOrderId="head",
             )
