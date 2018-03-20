@@ -88,17 +88,21 @@ def run(ctx):
             signal.signal(signal.SIGTERM, kill_bots)
             signal.signal(signal.SIGINT, kill_bots)
             try:
-                # These signals are UNIX-only territory, will ValueError here on Windows
+                # These signals are UNIX-only territory, will ValueError here
+                # on Windows
                 signal.signal(signal.SIGHUP, kill_bots)
                 # TODO: reload config on SIGUSR1
                 # signal.signal(signal.SIGUSR1, lambda x, y: bot.do_next_tick(bot.reread_config))
             except ValueError:
-                log.debug("Cannot set all signals -- not available on this platform")
+                log.debug(
+                    "Cannot set all signals -- not available on this platform")
             bot.run()
         finally:
-            if ctx.obj['pidfile']: os.unlink(ctx.obj['pidfile'])
+            if ctx.obj['pidfile']:
+                os.unlink(ctx.obj['pidfile'])
     except errors.NoBotsAvailable:
         sys.exit(70)  # 70= "Software error" in /usr/include/sysexts.h
+
 
 @main.command()
 @click.pass_context
@@ -125,9 +129,9 @@ def configure(ctx):
         click.echo("starting dexbot daemon")
         os.system("systemctl --user start dexbot")
 
+
 def bot_job(bot, job):
     return lambda x, y: bot.do_next_tick(job)
-
 
 
 if __name__ == '__main__':
