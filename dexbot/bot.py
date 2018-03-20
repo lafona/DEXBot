@@ -129,13 +129,13 @@ class BotInfrastructure(threading.Thread):
             self.reporter = reports.Reporter(self.config['reports'], self.bots)
         else:
             self.reporter = None
-            
+
     # Events
     def on_block(self, data):
         if self.jobs:
-            try: 
+            try:
                 for i in self.jobs:
-                    i ()
+                    i()
             finally:
                 self.jobs = set()
         if self.reporter is not None:
@@ -179,7 +179,7 @@ class BotInfrastructure(threading.Thread):
         self.init_bots()
         self.notify.listen()
 
-    def stop(self,*args):
+    def stop(self, *args):
         for bot in self.bots:
             self.bots[bot].cancel_all()
         self.notify.websocket.close()

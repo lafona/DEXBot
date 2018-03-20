@@ -48,7 +48,8 @@ class Strategy(BaseStrategy):
         # Buy Side
         if float(self.balance(self.market["base"])) < self.buy_price * amount:
             self.log.critical(
-                'Insufficient buy balance, needed {} {}'.format(self.buy_price * amount, self.market['base']['symbol'])
+                'Insufficient buy balance, needed {} {}'.format(
+                    self.buy_price * amount, self.market['base']['symbol'])
             )
             self.disabled = True
         else:
@@ -59,14 +60,19 @@ class Strategy(BaseStrategy):
                 returnOrderId="head"
             )
             buy_order = self.get_order(buy_transaction['orderid'])
-            self.log.info('Placed a buy order for {} {} @ {}'.format(amount, self.market["quote"], self.buy_price))
+            self.log.info(
+                'Placed a buy order for {} {} @ {}'.format(
+                    amount,
+                    self.market["quote"],
+                    self.buy_price))
             if buy_order:
                 self['buy_order'] = buy_order
 
         # Sell Side
         if float(self.balance(self.market["quote"])) < amount:
             self.log.critical(
-                "Insufficient sell balance, needed {} {}".format(amount, self.market['quote']['symbol'])
+                "Insufficient sell balance, needed {} {}".format(
+                    amount, self.market['quote']['symbol'])
             )
             self.disabled = True
         else:
@@ -77,7 +83,11 @@ class Strategy(BaseStrategy):
                 returnOrderId="head"
             )
             sell_order = self.get_order(sell_transaction['orderid'])
-            self.log.info('Placed a sell order for {} {} @ {}'.format(amount, self.market["quote"], self.buy_price))
+            self.log.info(
+                'Placed a sell order for {} {} @ {}'.format(
+                    amount,
+                    self.market["quote"],
+                    self.buy_price))
             if sell_order:
                 self['sell_order'] = sell_order
 
@@ -99,7 +109,8 @@ class Strategy(BaseStrategy):
         sold_amount = 0
         if new_sell_order and new_sell_order['base']['amount'] < sell_order['base']['amount']:
             # Some of the sell order was sold
-            sold_amount = sell_order['base']['amount'] - new_sell_order['base']['amount']
+            sold_amount = sell_order['base']['amount'] - \
+                new_sell_order['base']['amount']
         elif not new_sell_order and sell_order:
             # All of the sell order was sold
             sold_amount = sell_order['base']['amount']
@@ -107,7 +118,8 @@ class Strategy(BaseStrategy):
         bought_amount = 0
         if new_buy_order and new_buy_order['quote']['amount'] < buy_order['quote']['amount']:
             # Some of the buy order was bought
-            bought_amount = buy_order['quote']['amount'] - new_buy_order['quote']['amount']
+            bought_amount = buy_order['quote']['amount'] - \
+                new_buy_order['quote']['amount']
         elif not new_buy_order and buy_order:
             # All of the buy order was bought
             bought_amount = buy_order['quote']['amount']
@@ -138,7 +150,8 @@ class Strategy(BaseStrategy):
                 )
                 buy_order = self.get_order(buy_transaction['orderid'])
                 self.log.info(
-                    'Placed a buy order for {} {} @ {}'.format(new_buy_amount, self.market["quote"], buy_price)
+                    'Placed a buy order for {} {} @ {}'.format(
+                        new_buy_amount, self.market["quote"], buy_price)
                 )
                 if buy_order:
                     self['buy_order'] = buy_order
@@ -155,7 +168,8 @@ class Strategy(BaseStrategy):
             new_sell_amount = sell_order_amount + bought_amount - sold_amount
             if float(self.balance(self.market["quote"])) < new_sell_amount:
                 self.log.critical(
-                    "Insufficient sell balance, needed {} {}".format(new_sell_amount, self.market["quote"]['symbol'])
+                    "Insufficient sell balance, needed {} {}".format(
+                        new_sell_amount, self.market["quote"]['symbol'])
                 )
                 self.disabled = True
             else:
@@ -171,7 +185,8 @@ class Strategy(BaseStrategy):
                 )
                 sell_order = self.get_order(sell_transaction['orderid'])
                 self.log.info(
-                    'Placed a sell order for {} {} @ {}'.format(new_sell_amount, self.market["quote"], buy_price)
+                    'Placed a sell order for {} {} @ {}'.format(
+                        new_sell_amount, self.market["quote"], buy_price)
                 )
                 if sell_order:
                     self['sell_order'] = sell_order
@@ -181,7 +196,10 @@ class Strategy(BaseStrategy):
 
     def orders_balance(self):
         balance = 0
-        orders = [o for o in [self['buy_order'], self['sell_order']] if o]  # Strip empty orders
+        orders = [
+            o for o in [
+                self['buy_order'],
+                self['sell_order']] if o]  # Strip empty orders
         for order in orders:
             if order['base']['symbol'] != self.market['base']['symbol']:
                 # Invert the market for easier calculation
@@ -218,7 +236,8 @@ class Strategy(BaseStrategy):
             buy_order_updated = not current_buy_order or \
                 current_buy_order['quote']['amount'] != self['buy_order']['quote']['amount']
 
-            if (self['sell_order'] and sell_order_updated) or (self['buy_order'] and buy_order_updated):
+            if (self['sell_order'] and sell_order_updated) or (
+                    self['buy_order'] and buy_order_updated):
                 # Either buy or sell order was changed, update both orders
                 self.update_orders(current_sell_order, current_buy_order)
 
@@ -229,7 +248,11 @@ class Strategy(BaseStrategy):
     # GUI updaters
     def update_gui_profit(self):
         if self.initial_balance:
-            profit = round((self.orders_balance() - self.initial_balance) / self.initial_balance, 3)
+            profit = round(
+                (self.orders_balance() -
+                 self.initial_balance) /
+                self.initial_balance,
+                3)
         else:
             profit = 0
         idle_add(self.view.set_bot_profit, self.bot_name, float(profit))

@@ -13,13 +13,38 @@ class Strategy(BaseStrategy):
 
     @classmethod
     def configure(cls):
-        return BaseStrategy.configure()+[
-            ConfigElement("spread","int",5,"the spread between sell and buy as percentage",(0,100)),
-            ConfigElement("threshold","int",5,"percentage the feed has to move before we change orders",(0,100)),
-            ConfigElement("buy","float",0.0,"the default amount to buy",(0.0,None)),
-            ConfigElement("sell","float",0.0,"the default amount to sell",(0.0,None)),
-            ConfigElement("blocks","int",20,"number of blocks to wait before re-calculating",(0,10000)),
-            ConfigElement("dry_run","bool",False,"Dry Run Mode\nIf Yes the bot won't buy or sell anything, just log what it would do.\nIf No, the bot will buy and sell for real.",None)
+        return BaseStrategy.configure() + [
+            ConfigElement(
+                "spread",
+                "int",
+                5,
+                "the spread between sell and buy as percentage",
+                (0,
+                 100)),
+            ConfigElement(
+                "threshold",
+                "int",
+                5,
+                "percentage the feed has to move before we change orders",
+                (0,
+                 100)),
+            ConfigElement(
+                "buy", "float", 0.0, "the default amount to buy", (0.0, None)),
+            ConfigElement("sell", "float", 0.0,
+                          "the default amount to sell", (0.0, None)),
+            ConfigElement(
+                "blocks",
+                "int",
+                20,
+                "number of blocks to wait before re-calculating",
+                (0,
+                 10000)),
+            ConfigElement(
+                "dry_run",
+                "bool",
+                False,
+                "Dry Run Mode\nIf Yes the bot won't buy or sell anything, just log what it would do.\nIf No, the bot will buy and sell for real.",
+                None)
         ]
 
     def __init__(self, *args, **kwargs):
@@ -65,8 +90,13 @@ class Strategy(BaseStrategy):
         self["feed_price"] = float(price)
 
         # Buy Side
-        if float(self.balance(self.market["base"])) < buy_price * target["amount"]["buy"]:
-            InsufficientFundsError(Amount(target["amount"]["buy"] * float(buy_price), self.market["base"]))
+        if float(self.balance(self.market["base"])
+                 ) < buy_price * target["amount"]["buy"]:
+            InsufficientFundsError(
+                Amount(
+                    target["amount"]["buy"] *
+                    float(buy_price),
+                    self.market["base"]))
             self["insufficient_buy"] = True
         else:
             self["insufficient_buy"] = False
@@ -77,8 +107,12 @@ class Strategy(BaseStrategy):
             )
 
         # Sell Side
-        if float(self.balance(self.market["quote"])) < target["amount"]["sell"]:
-            InsufficientFundsError(Amount(target["amount"]["sell"], self.market["quote"]))
+        if float(self.balance(self.market["quote"])
+                 ) < target["amount"]["sell"]:
+            InsufficientFundsError(
+                Amount(
+                    target["amount"]["sell"],
+                    self.market["quote"]))
             self["insufficient_sell"] = True
         else:
             self["insufficient_sell"] = False
@@ -96,10 +130,12 @@ class Strategy(BaseStrategy):
         """
         target = self.bot.get("target", {})
         if target.get("reference") == "feed":
-            assert self.market == self.market.core_quote_market(), "Wrong market for 'feed' reference!"
+            assert self.market == self.market.core_quote_market(
+            ), "Wrong market for 'feed' reference!"
             ticker = self.market.ticker()
             price = ticker.get("quoteSettlement_price")
-            assert abs(price["price"]) != float("inf"), "Check price feed of asset! (%s)" % str(price)
+            assert abs(price["price"]) != float(
+                "inf"), "Check price feed of asset! (%s)" % str(price)
         return price
 
     def tick(self, d):
@@ -129,7 +165,9 @@ class Strategy(BaseStrategy):
         # Test if price feed has moved more than the threshold
         if (
             self["feed_price"] and
-            fabs(1 - float(self.getprice()) / self["feed_price"]) > self.bot["threshold"] / 100.0
+            fabs(1 - float(self.getprice()) /
+                 self["feed_price"]) > self.bot["threshold"] / 100.0
         ):
-            self.log.info("Price feed moved by more than the threshold. Updating orders!")
+            self.log.info(
+                "Price feed moved by more than the threshold. Updating orders!")
             self.updateorders()

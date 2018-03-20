@@ -1,7 +1,8 @@
 import os
 import sys
 import click
-import logging, logging.config
+import logging
+import logging.config
 from datetime import datetime
 from bitshares.price import Price
 from prettytable import PrettyTable
@@ -11,6 +12,7 @@ from bitshares.instance import set_shared_bitshares_instance
 log = logging.getLogger(__name__)
 
 from dexbot.storage import SQLiteHandler
+
 
 def verbose(f):
     @click.pass_context
@@ -40,7 +42,8 @@ def verbose(f):
         ch = logging.StreamHandler()
         ch.setFormatter(formatter2)
         logging.getLogger("dexbot.per_bot").addHandler(ch)
-        logging.getLogger("dexbot.per_bot").addHandler(SQLiteHandler()) # and log to SQLIte DB
+        logging.getLogger("dexbot.per_bot").addHandler(
+            SQLiteHandler())  # and log to SQLIte DB
         logging.getLogger("dexbot.per_bot").setLevel(level)
         # don't double up with root logger
         logging.getLogger("dexbot.per_bot").propagate = False
@@ -68,7 +71,8 @@ def verbose(f):
             log.addHandler(ch)
         # has the user set logging in the config
         if "logging" in ctx.config:
-            # this is defined in https://docs.python.org/3.4/library/logging.config.html#logging-config-dictschema
+            # this is defined in
+            # https://docs.python.org/3.4/library/logging.config.html#logging-config-dictschema
             logging.config.dictConfig(ctx.config['logging'])
         return ctx.invoke(f, *args, **kwargs)
     return update_wrapper(new_func, f)
@@ -123,10 +127,13 @@ def configfile(f):
         try:
             ctx.config = yaml.safe_load(open(ctx.obj["configfile"]))
         except FileNotFoundError:
-            alert("Looking for the config file in %s\nNot found!\nTry running 'dexbot configure' to generate\n" % ctx.obj['configfile'])
-            sys.exit(78) # 'configuation error' in sysexits.h
+            alert(
+                "Looking for the config file in %s\nNot found!\nTry running 'dexbot configure' to generate\n" %
+                ctx.obj['configfile'])
+            sys.exit(78)  # 'configuation error' in sysexits.h
         return ctx.invoke(f, *args, **kwargs)
     return update_wrapper(new_func, f)
+
 
 def priceChange(new, old):
     if float(old) == 0.0:
@@ -169,7 +176,10 @@ def alert(msg):
         click.style("Alert", fg="red") +
         "] " + msg
     )
+
+
 5B
+
 
 def confirmalert(msg):
     return click.confirm(

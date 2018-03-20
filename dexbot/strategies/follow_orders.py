@@ -73,7 +73,7 @@ class Strategy(BaseStrategy):
                 'float',
                 0,
                 "Percentage of bias higher or lower (negative is lower) from the baseprice",
-                (-100,100))
+                (-100, 100))
         ]
 
     def safe_dissect(self, thing, name):
@@ -124,7 +124,8 @@ class Strategy(BaseStrategy):
                     newprice, self.bot["max"]))
             return False
 
-        sell_wall = self.balance(self.market['quote']) * self.bot['wall_percent'] / 100.0
+        sell_wall = self.balance(
+            self.market['quote']) * self.bot['wall_percent'] / 100.0
         sell_price = newprice + step1
         for i in range(0, self.bot['staggers']):
             self.log.info("SELL {amt} at {price:.4g} {base}/{quote} (= {inv_price:.4g} {quote}/{base})".format(
@@ -143,7 +144,14 @@ class Strategy(BaseStrategy):
             myorders[ret['orderid']] = sell_price
             sell_price += step2
 
-        buy_wall = Amount(float(self.balance(self.market['base']) * self.bot['wall_percent'] / 100.00 / newprice),self.market['quote'])
+        buy_wall = Amount(
+            float(
+                self.balance(
+                    self.market['base']) *
+                self.bot['wall_percent'] /
+                100.00 /
+                newprice),
+            self.market['quote'])
         buy_price = newprice - step1
         for i in range(0, self.bot['staggers']):
             self.log.info("BUY {amt} at {price:.4g} {base}/{quote} (= {inv_price:.4g} {quote}/{base})".format(
@@ -166,7 +174,7 @@ class Strategy(BaseStrategy):
         # self.safe_dissect(ret,"execute")
 
         return True
-    
+
     def onmarket(self, data):
         if isinstance(
                 data, FilledOrder) and data['account_id'] == self.account['id']:
@@ -191,10 +199,11 @@ class Strategy(BaseStrategy):
         if newprice is not None:
             if self.updateorders(newprice):
                 time.sleep(1)
-                self.reassess(None)  # check if order has been filled while we were busy entering orders
+                # check if order has been filled while we were busy entering
+                # orders
+                self.reassess(None)
         else:
             self.log.debug("no action")
-
 
     def recalculate_price(self, market_data=None):
         """Recalculate the base price according to the bot's rules

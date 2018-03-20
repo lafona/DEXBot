@@ -17,7 +17,10 @@ from email.utils import COMMASPACE, formatdate
 
 log = logging.getLogger(__name__)
 
-EMAIL_DEFAULT = {'server': '127.0.0.1', 'port': 25, 'subject': 'DEXBot Regular Report'}
+EMAIL_DEFAULT = {
+    'server': '127.0.0.1',
+    'port': 25,
+    'subject': 'DEXBot Regular Report'}
 
 signalled = False
 
@@ -40,13 +43,14 @@ INTRO = """
        }
        table#log {
           font-size: smaller;
-       } 
+       }
     </style>
   </head>
   <body>"""
 
 
-LOGLEVELS = {0:'debug', 1:'info', 2:'warn', 3:'critical'}
+LOGLEVELS = {0: 'debug', 1: 'info', 2: 'warn', 3: 'critical'}
+
 
 class Reporter(Storage):
 

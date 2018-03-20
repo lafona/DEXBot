@@ -314,7 +314,7 @@ class BaseStrategy(Storage, StateMachine, Events):
         self.cancel_all()
         self.clear()
 
-    def graph(self,start,end_=None):
+    def graph(self, start, end_=None):
         """Draw a graph over the specified time period (both datetime)
         Uses routine suitable for one-market trading bots
         More complex bots (arbitrage, etc) may need to override to provide
@@ -324,6 +324,7 @@ class BaseStrategy(Storage, StateMachine, Events):
         if len(data) < 2:
             # not enough data to graph
             return None
-        data = graph.rebase_data(data, self.market['quote']['symbol'], self.market['base']['symbol'])
+        data = graph.rebase_data(data,
+                                 self.market['quote']['symbol'],
+                                 self.market['base']['symbol'])
         return graph.do_graph(data)
-
