@@ -48,7 +48,7 @@ class BotInfrastructure(threading.Thread):
         self.config = config
         self.view = view
         self.jobs = set()
-
+        
     def init_bots(self):
         """Do the actual initialisation of bots
         Potentially quite slow (tens of seconds)
@@ -133,9 +133,9 @@ class BotInfrastructure(threading.Thread):
     # Events
     def on_block(self, data):
         if self.jobs:
-            try:
-                for i in self.jobs:
-                    i()
+            try: 
+                for job in self.jobs:
+                    job()
             finally:
                 self.jobs = set()
         if self.reporter is not None:
@@ -194,16 +194,17 @@ class BotInfrastructure(threading.Thread):
         strategy = BaseStrategy(config, bot_name)
         strategy.purge()
 
+    def do_next_tick(self, job):
+        """Add a callable to be executed on the next tick"""
+        self.jobs.add(job)
+
     def report_now(self):
         """Force-generate a report if we can"""
         if self.reporter is not None:
             self.reporter.run_report_week()
         else:
             log.warn("No reporter available")
-
-    def do_next_tick(self, job):
-        """Add a callable to be executed on the next tick"""
-        self.jobs.add(job)
-
+            
     def reread_config(self):
         log.warn("reread_config not implemented yet")
+

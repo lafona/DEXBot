@@ -82,35 +82,20 @@ def run(ctx):
         bot = BotInfrastructure(ctx.config)
         # set up signalling. do it here as of no relevance to GUI
 
-        def killbots(x, y): return bot.do_next_tick(bot.stop)
-        # these first two UNIX & Windows
-        signal.signal(signal.SIGTERM, killbots)
-        signal.signal(signal.SIGINT, killbots)
+        killbots = bot_job(bot, bot.stop)
+        # These first two UNIX & Windows
+        signal.signal(signal.SIGTERM, kill_bots)
+        signal.signal(signal.SIGINT, kill_bots)
         try:
-            # these signals are UNIX-only territory, will ValueError here on
-            # Windows
-            signal.signal(signal.SIGHUP, killbots)
-            # future plan: reload config on SIGUSR1
-            #signal.signal(signal.SIGUSR1, lambda x, y: bot.do_next_tick(bot.reread_config))
-            signal.signal(
-                signal.SIGUSR2,
-                lambda x,
-                y: bot.do_next_tick(
-                    bot.report_now))
+            # These signals are UNIX-only territory, will ValueError here on Windows
+            signal.signal(signal.SIGHUP, kill_bots)
+            # TODO: reload config on SIGUSR1
+            # signal.signal(signal.SIGUSR1, lambda x, y: bot.do_next_tick(bot.reread_config))
         except ValueError:
-            log.debug("Cannot set all signals -- not avaiable on this platform")
-        bot.init_bots()
-        if ctx.obj['systemd']:
-            try:
-                import sdnotify  # a soft dependency on sdnotify -- don't crash on non-systemd systems
-                n = sdnotify.SystemdNotifier()
-                n.notify("READY=1")
-            except BaseException:
-                log.debug("sdnotify not available")
-        bot.notify.listen()
+            log.debug("Cannot set all signals -- not available on this platform")
+        bot.run()
     except errors.NoBotsAvailable:
         sys.exit(70)  # 70= "Software error" in /usr/include/sysexts.h
-
 
 @main.command()
 @click.pass_context
@@ -136,6 +121,10 @@ def configure(ctx):
         os.system("systemctl --user enable dexbot")
         click.echo("starting dexbot daemon")
         os.system("systemctl --user start dexbot")
+
+def bot_job(bot, job):
+    return lambda x, y: bot.do_next_tick(job)
+
 
 
 if __name__ == '__main__':

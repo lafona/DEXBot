@@ -1,7 +1,12 @@
 # DEXBot
 
-Trading Bot for the BitShares Decentralized Exchange
-(DEX).
+Trading Bot for the BitShares Decentralized Exchange (DEX).
+
+## Build status
+
+master:  
+[![Build Status](https://travis-ci.org/Codaone/DEXBot.svg?branch=master)](https://travis-ci.org/Codaone/DEXBot)
+
 
 **Warning**: This is highly experimental code! Use at your OWN risk!
 
