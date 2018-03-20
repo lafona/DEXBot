@@ -39,7 +39,8 @@ TEST_CONFIG = {
             'bias': 1
         }}}
 
-KEYS = ['5JV32w3BgPgHV1VoELuDQxvt1gdfuXHo2Rm8TrEn6SQwSsLjnH8']
+# user need sto put a key in
+KEYS = ['']
 
 
 class TestDexbot(unittest.TestCase):
