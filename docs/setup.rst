@@ -41,6 +41,13 @@ This has been tested on Fedora 27::
  sudo yum install -y gcc openssl-devel python3-pip python3-devel newt
 
 
+Arch
+====
+
+As root, do::
+
+  pacman -S libnewt python-pip gcc
+
 Other Distros
 =============
 
