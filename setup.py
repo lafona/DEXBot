@@ -41,7 +41,7 @@ setup(
         "appdirs",
         #"pyqt5",
         "sdnotify",
-        "matplotlib"
+        "matplotlib",
         #'pyqt-distutils',
         "ruamel.yaml>=0.15"
     ],
