@@ -178,9 +178,6 @@ def alert(msg):
     )
 
 
-5B
-
-
 def confirmalert(msg):
     return click.confirm(
         "[" +
