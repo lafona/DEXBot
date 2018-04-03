@@ -58,7 +58,7 @@ Installation
 
 ::
 
-  sudo -H pip3 install https://github.com/ihaywood3/DEXBot/archive/stable.zip
+  sudo -H pip3 install https://github.com/ihaywood3/DEXBot/archive/master.zip
 
 If you want the latest development version (which may not be tested at all), use git to download::
 
