@@ -93,7 +93,7 @@ def run(ctx):
                 signal.signal(signal.SIGHUP, kill_bots)
                 # TODO: reload config on SIGUSR1
                 # signal.signal(signal.SIGUSR1, lambda x, y: bot.do_next_tick(bot.reread_config))
-            except ValueError:
+            except AttributeError:
                 log.debug(
                     "Cannot set all signals -- not available on this platform")
             bot.run()
