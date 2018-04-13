@@ -22,7 +22,7 @@ import collections
 import re
 import tempfile
 import shutil
-from dexbot.bot import STRATEGIES
+from dexbot.worker import STRATEGIES
 from dexbot.whiptail import get_whiptail
 from dexbot.find_node import start_pings, best_node
 

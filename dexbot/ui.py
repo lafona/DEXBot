@@ -7,8 +7,12 @@ from datetime import datetime
 from bitshares.price import Price
 from prettytable import PrettyTable
 from functools import update_wrapper
+
+import click
+from ruamel import yaml
 from bitshares import BitShares
 from bitshares.instance import set_shared_bitshares_instance
+
 log = logging.getLogger(__name__)
 
 from dexbot.storage import SQLiteHandler
@@ -62,6 +66,7 @@ def verbose(f):
             log = logging.getLogger("grapheneapi")
             log.setLevel(getattr(logging, verbosity.upper()))
             log.addHandler(ch)
+
         if ctx.obj["verbose"] > 8:
             verbosity = [
                 "critical", "error", "warn", "info", "debug"

@@ -15,18 +15,14 @@ from .ui import (
     verbose,
     chain,
     unlock,
-    configfile,
-    confirmwarning,
-    confirmalert,
-    warning,
-    alert,
+    configfile
 )
 
-
-from .bot import BotInfrastructure
+from dexbot.worker import WorkerInfrastructure
 from .cli_conf import configure_dexbot
-from . import errors
-from . import storage
+import dexbot.errors as errors
+
+import click
 
 log = logging.getLogger(__name__)
 
@@ -73,36 +69,32 @@ def main(ctx, **kwargs):
 @unlock
 @verbose
 def run(ctx):
-    """ Continuously run the bot
+    """ Continuously run the worker
     """
     if ctx.obj['pidfile']:
         with open(ctx.obj['pidfile'], 'w') as fd:
             fd.write(str(os.getpid()))
     try:
         try:
-            bot = BotInfrastructure(ctx.config)
-            # set up signalling. do it here as of no relevance to GUI
-
-            killbots = bot_job(bot, bot.stop)
-            # These first two UNIX & Windows
-            signal.signal(signal.SIGTERM, kill_bots)
-            signal.signal(signal.SIGINT, kill_bots)
+            worker = WorkerInfrastructure(ctx.config)
+            # Set up signalling. we do it here as it's of no relevance to GUI
+            kill_workers = worker_job(worker, worker.stop)
+            # These first two signals UNIX & Windows
+            signal.signal(signal.SIGTERM, kill_workers)
+            signal.signal(signal.SIGINT, kill_workers)
             try:
-                # These signals are UNIX-only territory, will ValueError here
-                # on Windows
-                signal.signal(signal.SIGHUP, kill_bots)
+                # These signals are UNIX-only territory, will throw exception at this point on Windows
+                signal.signal(signal.SIGHUP, kill_workers)
                 # TODO: reload config on SIGUSR1
-                # signal.signal(signal.SIGUSR1, lambda x, y: bot.do_next_tick(bot.reread_config))
+                # signal.signal(signal.SIGUSR1, lambda x, y: worker.do_next_tick(worker.reread_config))
             except AttributeError:
-                log.debug(
-                    "Cannot set all signals -- not available on this platform")
-            bot.run()
+                log.debug("Cannot set all signals -- not available on this platform")
+            worker.run()
         finally:
             if ctx.obj['pidfile']:
                 os.unlink(ctx.obj['pidfile'])
-    except errors.NoBotsAvailable:
+    except errors.NoWorkersAvailable:
         sys.exit(70)  # 70= "Software error" in /usr/include/sysexts.h
-
 
 @main.command()
 @click.pass_context
@@ -129,10 +121,8 @@ def configure(ctx):
         click.echo("starting dexbot daemon")
         os.system("systemctl --user start dexbot")
 
-
-def bot_job(bot, job):
-    return lambda x, y: bot.do_next_tick(job)
-
+def worker_job(worker, job):
+    return lambda x, y: worker.do_next_tick(job)
 
 if __name__ == '__main__':
     main()

@@ -7,6 +7,5 @@ def InsufficientFundsError(amount):
         "[InsufficientFunds] Need {}".format(str(amount))
     )
 
-
-class NoBotsAvailable(Exception):
+class NoWorkersAvailable(Exception):
     pass

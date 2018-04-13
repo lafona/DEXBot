@@ -2,8 +2,14 @@
 
 from setuptools import setup
 from setuptools.command.install import install
+from distutils.util import convert_path
 
-VERSION = '0.1.2-ih'
+
+main_ns = {}
+ver_path = convert_path('dexbot/__init__.py')
+with open(ver_path) as ver_file:
+    exec(ver_file.read(), main_ns)
+    VERSION = main_ns['__version__']
 
 
 setup(
@@ -43,7 +49,7 @@ setup(
         "sdnotify",
         "matplotlib",
         #'pyqt-distutils',
-        "ruamel.yaml>=0.15"
+        "ruamel.yaml>=0.15.37"
     ],
     include_package_data=True,
 )

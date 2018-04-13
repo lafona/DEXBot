@@ -54,8 +54,8 @@ LOGLEVELS = {0: 'debug', 1: 'info', 2: 'warn', 3: 'critical'}
 
 class Reporter(Storage):
 
-    def __init__(self, config, bots):
-        self.bots = bots
+    def __init__(self, config, workers):
+        self.workers = workers
         self.config = config
         Storage.__init__(self, "reporter")
         if not "lastrun" in self:
@@ -85,20 +85,20 @@ class Reporter(Storage):
         msg = io.StringIO()
         files = []
         msg.write(INTRO)
-        for botname, bot in self.bots.items():
-            msg.write("<h1>Bot {}</h1>\n".format(botname))
-            msg.write('<h2>Settings</h2><table id="bot">')
-            for key, value in bot.bot.items():
+        for workername, worker in self.workers.items():
+            msg.write("<h1>Worker {}</h1>\n".format(workername))
+            msg.write('<h2>Settings</h2><table id="worker">')
+            for key, value in worker.worker.items():
                 msg.write("<tr><td>{}</td><td>{}</tr>".format(key, value))
             msg.write("</table><h2>Graph</h2>")
-            fname = bot.graph(start=start)
+            fname = worker.graph(start=start)
             if fname is not None:
                 msg.write("<p><img src=\"cid:{}\"></p>".format(basename(fname)))
                 files.append(fname)
             else:
                 msg.write("<p>Not enough data to graph.<p>")
             msg.write("<h2>Balance History</h2>")
-            data = graph.query_to_dicts(bot.query_journal(start=start))
+            data = graph.query_to_dicts(worker.query_journal(start=start))
             if len(data) == 0:
                 msg.write("<p>No data</p>")
             else:
@@ -114,7 +114,7 @@ class Reporter(Storage):
                     msg.write('</tr>')
                 msg.write('</table>')
             msg.write('<h2>Log</h2><table id="log">')
-            logs = bot.query_log(start=start)
+            logs = worker.query_log(start=start)
             for entry in logs:
                 msg.write('<tr class="{}"><td>{}</td><td>{}</td></tr>'.format(
                     LOGLEVELS[entry.severity],

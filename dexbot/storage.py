@@ -9,15 +9,16 @@ import time
 import datetime
 import re
 import logging
+from appdirs import user_data_dir
 
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
-from appdirs import user_data_dir
+
 Base = declarative_base()
 
 # For dexbot.sqlite file
 appname = "dexbot"
-appauthor = "ChainSquad GmbH"
+appauthor = "Codaone Oy"
 storageDatabase = "dexbot.sqlite"
 
 
@@ -76,22 +77,22 @@ class Storage(dict):
         self.category = category
 
     def __setitem__(self, key, value):
-        worker.execute_noreturn(worker.set_item, self.category, key, value)
+        db_worker.execute_noreturn(db_worker.set_item, self.category, key, value)
 
     def __getitem__(self, key):
-        return worker.execute(worker.get_item, self.category, key)
+        return db_worker.execute(db_worker.get_item, self.category, key)
 
     def __delitem__(self, key):
-        worker.execute_noreturn(worker.del_item, self.category, key)
+        db_worker.execute_noreturn(db_worker.del_item, self.category, key)
 
     def __contains__(self, key):
-        return worker.execute(worker.contains, self.category, key)
+        return db_worker.execute(db_worker.contains, self.category, key)
 
     def items(self):
-        return worker.execute(worker.get_items, self.category)
+        return db_worker.execute(db_worker.get_items, self.category)
 
     def clear(self):
-        worker.execute_noreturn(worker.clear, self.category)
+        db_worker.execute_noreturn(db_worker.clear, self.category)
 
     def save_journal(self, amounts):
         worker.execute_noreturn(worker.save_journal, self.category, amounts)
@@ -307,4 +308,4 @@ sqlDataBaseFile = os.path.join(data_dir, storageDatabase)
 # Create directory for sqlite file
 mkdir_p(data_dir)
 
-worker = DatabaseWorker()
+db_worker = DatabaseWorker()

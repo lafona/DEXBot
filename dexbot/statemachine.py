@@ -1,4 +1,4 @@
-class StateMachine():
+class StateMachine:
     """ Generic state machine
     """
 
