@@ -3,9 +3,7 @@
 from setuptools import setup
 from setuptools.command.install import install
 from distutils.util import convert_path
-
-from pyqt_distutils.build_ui import build_ui
-
+    
 main_ns = {}
 ver_path = convert_path('dexbot/__init__.py')
 with open(ver_path) as ver_file:
@@ -21,6 +19,12 @@ class InstallCommand(install):
         self.do_egg_install()
         self.run_command('build_ui')
 
+try:
+    from pyqt_distutils.build_ui import build_ui
+    cmdclass = {'build_ui': build_ui,'install':InstallCommand}
+except ImportError:
+    build_ui = None  # user won't have pyqt_distutils when deploying
+    cmdclass = {}
 
 setup(
     name='dexbot',
@@ -36,6 +40,12 @@ setup(
     packages=[
         "dexbot",
         "dexbot.strategies",
+        "dexbot.resources",
+        "dexbot.resources.img",
+        "dexbot.controllers",
+        "dexbot.views",
+        "dexbot.views.ui",
+        "dexbot.queue"
     ],
     classifiers=[
         'License :: OSI Approved :: MIT License',
@@ -44,16 +54,15 @@ setup(
         'Development Status :: 3 - Alpha',
         'Intended Audience :: Developers',
     ],
-    cmdclass={
-        'build_ui': build_ui,
-        'install': InstallCommand,
-    },
+    cmdclass=cmdclass,
     entry_points={
         'console_scripts': [
             'dexbot = dexbot.cli:main',
+            'dexbot_gui = dexbot.gui:main'
         ],
     },
     install_requires=[
+        "pyqt-distutils==0.7.3",
         "bitshares",
         "uptick>=0.1.4",
         "click",

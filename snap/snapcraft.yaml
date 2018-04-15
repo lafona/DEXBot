@@ -1,0 +1,41 @@
+name: dexbot
+version: '0.1.12'
+summary: market-making trading bot for the BitShares DEX
+description: |
+  DEXBot is an automated alogrithmic trading bot. It works exclusively
+  with the BitShares DEX, with a focus on market-making strategies.
+
+  Several different strategies will be available.
+
+  Both GUI and command-line versions are available.
+
+grade: devel # must be 'stable' to release into candidate/stable channels
+confinement: devmode # use 'strict' once you have the right plugs and slots
+
+apps:
+  dexbot:
+    plugs: [home, network, x11]
+    command: desktop-launch "$SNAP/bin/dexbot_gui"
+  uptick:
+    command: bin/uptick
+    plugs: [home, network]
+  cli:
+    command: bin/dexbot
+    plugs: [home, network]
+    
+parts:
+  dexbot:
+    source: .
+    plugin: python
+    requirements: requirements.txt
+    build-packages:
+      - libssl-dev
+      - python3-wheel
+      - python3-setuptools
+      - python3-pip
+      - python3-dev
+    stage-packages:
+      - libssl1.0.0
+      - libqt5gui5
+    after: [desktop-qt5]
+    
