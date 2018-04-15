@@ -95,13 +95,13 @@ class Storage(dict):
         db_worker.execute_noreturn(db_worker.clear, self.category)
 
     def save_journal(self, amounts):
-        worker.execute_noreturn(worker.save_journal, self.category, amounts)
+        db_worker.execute_noreturn(db_worker.save_journal, self.category, amounts)
 
     def query_journal(self, start, end_=None):
-        return worker.execute(worker.query_journal, self.category, start, end_)
+        return db_worker.execute(db_worker.query_journal, self.category, start, end_)
 
     def query_log(self, start, end_=None):
-        return worker.execute(worker.query_log, self.category, start, end_)
+        return db_worker.execute(db_worker.query_log, self.category, start, end_)
 
 
 class DatabaseWorker(threading.Thread):

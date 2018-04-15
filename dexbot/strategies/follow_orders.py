@@ -30,14 +30,14 @@ class Strategy(BaseStrategy):
                 "max",
                 "float",
                 100.0,
-                "bot will not trade if price above this",
+                "worker will not trade if price above this",
                 (0.0,
                  None)),
             ConfigElement(
                 "min",
                 "float",
                 100.0,
-                "bot will not trade if price below this",
+                "worker will not trade if price below this",
                 (0.0,
                  None)),
             ConfigElement(
@@ -51,7 +51,7 @@ class Strategy(BaseStrategy):
                 "reset",
                 "bool",
                 False,
-                "bot will always reset orders on start",
+                "worker will always reset orders on start",
                 (0.0,
                  None)),
             ConfigElement(
@@ -90,7 +90,7 @@ class Strategy(BaseStrategy):
         super().__init__(*args, **kwargs)
         # Define Callbacks
         self.onMarketUpdate += self.onmarket
-        if self.bot.get("reset", False):
+        if self.worker.get("reset", False):
             self.cancel_all()
         self.reassess()
 
@@ -98,10 +98,12 @@ class Strategy(BaseStrategy):
         """ Update the orders
         """
         self.log.info("Replacing orders. Baseprice is %f" % newprice)
-        step1 = self.bot['spread'] / 200.0 * newprice
-        step2 = self.bot['staggerspread'] / 100.0 * newprice
+        step1 = self.worker['spread'] / 200.0 * newprice
+        step2 = self.worker['staggerspread'] / 100.0 * newprice
         # apply bias
-        newprice = (100.0 + self.bot['bias']) / 100.0 * newprice
+        if self.worker['bias'] != 0.0:
+            newprice = (100.0 + self.worker['bias']) / 100.0 * newprice
+            self.log.info("After bias of %f%% baseprice is now %f" % (self.worker['bias'], newprice))
         self['price'] = newprice
         # Canceling orders
         self.cancel_all()
@@ -111,23 +113,23 @@ class Strategy(BaseStrategy):
 
         myorders = {}
 
-        if newprice < self.bot["min"]:
+        if newprice < self.worker["min"]:
             self.disabled = True
             self.log.critical(
                 "Price {} is below minimum {}".format(
-                    newprice, self.bot["min"]))
+                    newprice, self.worker["min"]))
             return False
-        if newprice > self.bot["max"]:
+        if newprice > self.worker["max"]:
             self.disabled = True
             self.log.critical(
                 "Price {} is above maximum {}".format(
-                    newprice, self.bot["max"]))
+                    newprice, self.worker["max"]))
             return False
 
         sell_wall = self.balance(
-            self.market['quote']) * self.bot['wall_percent'] / 100.0
+            self.market['quote']) * self.worker['wall_percent'] / 100.0
         sell_price = newprice + step1
-        for i in range(0, self.bot['staggers']):
+        for i in range(0, self.worker['staggers']):
             self.log.info("SELL {amt} at {price:.4g} {base}/{quote} (= {inv_price:.4g} {quote}/{base})".format(
                 amt=repr(sell_wall),
                 price=sell_price,
@@ -148,12 +150,12 @@ class Strategy(BaseStrategy):
             float(
                 self.balance(
                     self.market['base']) *
-                self.bot['wall_percent'] /
+                self.worker['wall_percent'] /
                 100.00 /
                 newprice),
             self.market['quote'])
         buy_price = newprice - step1
-        for i in range(0, self.bot['staggers']):
+        for i in range(0, self.worker['staggers']):
             self.log.info("BUY {amt} at {price:.4g} {base}/{quote} (= {inv_price:.4g} {quote}/{base})".format(
                 amt=repr(buy_wall),
                 price=buy_price,
@@ -206,7 +208,7 @@ class Strategy(BaseStrategy):
             self.log.debug("no action")
 
     def recalculate_price(self, market_data=None):
-        """Recalculate the base price according to the bot's rules
+        """Recalculate the base price according to the worker's rules
         (descendants encouraged to override)
         Returning None indicates no new orders
         """
@@ -225,7 +227,7 @@ class Strategy(BaseStrategy):
                 return None
             bid = float(t['highestBid'])
             ask = float(t['lowestAsk'])
-            return bid + ((ask - bid) * self.bot['start'] / 100.0)
+            return bid + ((ask - bid) * self.worker['start'] / 100.0)
         missing = set(self['myorders'].keys()) - still_open
         if missing:
             found_price = 0.0

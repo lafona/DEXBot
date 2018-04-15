@@ -36,7 +36,6 @@ class WorkerInfrastructure(threading.Thread):
         view=None
     ):
         super().__init__()
-
         # BitShares instance
         self.bitshares = bitshares_instance or shared_bitshares_instance()
         self.config = copy.deepcopy(config)
@@ -53,7 +52,7 @@ class WorkerInfrastructure(threading.Thread):
         user_worker_path = os.path.expanduser("~/bots")
         if os.path.exists(user_worker_path):
             sys.path.append(user_worker_path)
-        
+
     def init_workers(self, config):
         """ Initialize the workers
         """
@@ -88,14 +87,14 @@ class WorkerInfrastructure(threading.Thread):
                     'worker_name': worker_name, 'account': worker['account'],
                     'market': 'unknown', 'is_disabled': (lambda: True)
                 })
-               
+
         # set up reporting
 
         if "reports" in self.config:
             self.reporter = reports.Reporter(self.config['reports'], self.workers)
         else:
             self.reporter = None
-            
+
     def update_notify(self):
         if not self.config['workers']:
             log.critical("No workers to launch, exiting")
@@ -118,7 +117,7 @@ class WorkerInfrastructure(threading.Thread):
     # Events
     def on_block(self, data):
         if self.jobs:
-            try: 
+            try:
                 for job in self.jobs:
                     job()
             finally:
