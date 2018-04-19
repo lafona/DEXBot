@@ -10,6 +10,7 @@ import os.path
 import os
 import sys
 import appdirs
+from ruamel import yaml
 
 from .ui import (
     verbose,
