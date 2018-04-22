@@ -12,7 +12,7 @@ from . import graph
 
 ConfigElement = collections.namedtuple(
     'ConfigElement', 'key type default description extra')
-# bots need to specify their own configuration values
+# workers need to specify their own configuration values
 # I want this to be UI-agnostic so a future web or GUI interface can use it too
 # so each bot can have a class method 'configure' which returns a list of ConfigElement
 # named tuples. tuple fields as follows.
@@ -87,7 +87,7 @@ class BaseStrategy(Storage, StateMachine, Events):
         NOTE: when overriding you almost certainly will want to call the ancestor
         and then add your config values to the list.
         """
-        # these configs are common to all bots
+        # these configs are common to all workers
         return [
             ConfigElement(
                 "account",
@@ -197,7 +197,7 @@ class BaseStrategy(Storage, StateMachine, Events):
         """ Return the worker's open accounts in the current market
         """
         self.account.refresh()
-        return [o for o in self.account.openorders if self.bot["market"] == o.market and self.account.openorders]
+        return [o for o in self.account.openorders if self.worker["market"] == o.market and self.account.openorders]
 
 
     def get_order(self, order_id):
@@ -343,8 +343,8 @@ class BaseStrategy(Storage, StateMachine, Events):
 
     def graph(self, start, end_=None):
         """Draw a graph over the specified time period (both datetime)
-        Uses routine suitable for one-market trading bots
-        More complex bots (arbitrage, etc) may need to override to provide
+        Uses routine suitable for one-market trading workers
+        More complex workers (arbitrage, etc) may need to override to provide
         meaningful graphs
         """
         data = graph.query_to_dicts(self.query_journal(start, end_))

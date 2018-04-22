@@ -17,6 +17,22 @@ from email.utils import COMMASPACE, formatdate
 
 log = logging.getLogger(__name__)
 
+from dexbot.storage import SQLiteHandler
+
+"""
+A framework for reporting
+an an email based reporter
+"""
+
+class Reporter:
+    """Abstract base class for reporter plugins
+    """
+
+    def ontick(self):
+        """Called for every tick
+        """
+        pass
+
 EMAIL_DEFAULT = {
     'server': '127.0.0.1',
     'port': 25,
@@ -52,16 +68,19 @@ INTRO = """
 LOGLEVELS = {0: 'debug', 1: 'info', 2: 'warn', 3: 'critical'}
 
 
-class Reporter(Storage):
+class EmailReporter(Storage,Reporter):
 
-    def __init__(self, config, workers):
-        self.workers = workers
+    def __init__(self, **config):
+        self.worker_inf = config['worker_infrastructure']
         self.config = config
+        
         Storage.__init__(self, "reporter")
         if not "lastrun" in self:
             self['lastrun'] = self.lastrun = time.time()
         else:
             self.lastrun = self['lastrun']
+        logging.getLogger("dexbot.per_bot").addHandler(
+            SQLiteHandler())  # and log to SQLIte DB
 
     def ontick(self):
         now = time.time()
@@ -85,10 +104,10 @@ class Reporter(Storage):
         msg = io.StringIO()
         files = []
         msg.write(INTRO)
-        for workername, worker in self.workers.items():
+        for workername, worker in self.worker_inf.workers.items():
             msg.write("<h1>Worker {}</h1>\n".format(workername))
             msg.write('<h2>Settings</h2><table id="worker">')
-            for key, value in worker.worker.items():
+            for key, value in self.worker_inf.config['workers'][workername].items():
                 msg.write("<tr><td>{}</td><td>{}</tr>".format(key, value))
             msg.write("</table><h2>Graph</h2>")
             fname = worker.graph(start=start)
@@ -159,3 +178,96 @@ class Reporter(Storage):
             smtp.login(self.config['user'], self.config['password'])
         smtp.send_message(msg)
         smtp.close()
+
+class ChatReporter(Reporter, logging.Handler):
+
+    """
+    Base class for reporters that use a chat system (XMPP, Telegram, etc)
+    """
+
+    def __init__(self, worker_inf):
+        logging.Handler.__init__(self)
+        logging.getLogger("dexbot").addHandler(self)
+        logging.getLogger("dexbot.per_bot").addHandler(self)
+        self.worker_inf = worker_inf
+        Reporter.__init__(self)
+
+    def emit(self, record):
+        # Use default formatting:
+        self.format(record)
+        notes = record.msg
+        if record.exc_info:
+            notes += " " + \
+                logging._defaultFormatter.formatException(record.exc_info)
+        self.send_message(notes, level=record.levelno, worker_name=getattr(record,'worker_name','N/A'))
+
+    def send_message(self, message, worker_name='N/A', level=logging.INFO, reply_ref=None):
+        """
+        Send the user a message
+        May wish to colourise/prettify output through log metadata
+
+        MUST be able to cope with reply_ref = None: i.e. initiating a conversation with
+        the user. (I know for Telegram this is tricky)
+        """
+        pass
+
+    def receive_message(self, message, reply_ref=None):
+        """
+        Chat layer receives a message and calls here for parsing and execution
+        SECURITY: descendant code is responsible for making sure messages only
+        get here if sent by an authorised user
+
+        reply_ref: an opaque object, some chat systems use this for replying
+        will be passed in to send_message if supplied
+        """
+        #import pudb ; pudb.set_trace()
+        worker_name = 'N/A'
+        try:
+            message = message.strip()
+            if message.startswith("/"):
+                message = message[1:]
+            splits = message.split(":")
+            if len(splits) == 1:
+                if len(self.worker_inf.workers) > 1:
+                    self.send_message("You need to specify which worker using name: before the command", level=logging.ERROR, reply_ref=reply_ref)
+                    return
+                worker_name, self.worker = list(self.worker_inf.workers.items())[0]
+            else:
+                worker_name = splits[0].strip()
+                if worker_name not in self.worker_inf.workers:
+                    self.send_message("No such worker", level=logging.ERROR, worker_name=worker_name, reply_ref=reply_ref)
+                    return
+                message = splits[1]
+                self.worker = self.workers_inf.workers[workername]
+            message = message.split()
+            body = getattr(self, "cmd_"+message[0]) (*message[1:]) or "OK"
+            self.send_message(body, level=logging.INFO, worker_name=worker_name, reply_ref=reply_ref)
+        except (IndexError, ValueError, KeyError, AttributeError, TypeError):
+            self.send_message("Invalid command, use \"help\" for help", level=logging.ERROR, worker_name=worker_name, reply_ref=reply_ref)
+
+    def cmd_stop(self):
+        """Stop a bot
+        """
+        self.worker_inf.do_next_tick(self.worker.cancel_all)
+        self.worker.disabled = True
+
+    def cmd_kick(self):
+        """Restart a stopped or frozen bot
+        """
+        self.worker.disabled = False
+        self.worker_inf.do_next_tick(self.worker.reassess)
+
+    def cmd_price(self, price):
+        """Manually set the baseprice (forces recalculation of all orders)
+        """
+        price = float(price)
+        self.worker.disabled = False
+        self.worker_inf.do_next_tick(lambda: self.worker.updateorders(price))
+   
+    def cmd_help(self, cmd=None):
+        """List all available commands
+        """
+        if cmd is None:
+            s = ", ".join(i[4:] for i in dir(self) if i.startswith('cmd_'))
+            return "Commands available: {}\nUse \"help cmd\" for details".format(s)
+        return getattr(self, 'cmd_'+cmd).__doc__

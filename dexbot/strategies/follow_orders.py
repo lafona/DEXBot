@@ -8,7 +8,10 @@ import time
 
 
 class Strategy(BaseStrategy):
+    """Ian Haywood's Follow Orders
+    """
 
+    
     @classmethod
     def configure(cls):
         return BaseStrategy.configure() + [
@@ -100,11 +103,11 @@ class Strategy(BaseStrategy):
         self.log.info("Replacing orders. Baseprice is %f" % newprice)
         step1 = self.worker['spread'] / 200.0 * newprice
         step2 = self.worker['staggerspread'] / 100.0 * newprice
+        self['price'] = newprice
         # apply bias
         if self.worker['bias'] != 0.0:
             newprice = (100.0 + self.worker['bias']) / 100.0 * newprice
-            self.log.info("After bias of %f%% baseprice is now %f" % (self.worker['bias'], newprice))
-        self['price'] = newprice
+            self.log.info("After applying bias of %f%% baseprice is now %f" % (self.worker['bias'], newprice))
         # Canceling orders
         self.cancel_all()
         # record balances
@@ -130,7 +133,7 @@ class Strategy(BaseStrategy):
             self.market['quote']) * self.worker['wall_percent'] / 100.0
         sell_price = newprice + step1
         for i in range(0, self.worker['staggers']):
-            self.log.info("SELL {amt} at {price:.4g} {base}/{quote} (= {inv_price:.4g} {quote}/{base})".format(
+            self.log.info("Entering SELL order {amt} at {price:.4g} {base}/{quote} (= {inv_price:.4g} {quote}/{base})".format(
                 amt=repr(sell_wall),
                 price=sell_price,
                 inv_price=1 / sell_price,
@@ -156,7 +159,7 @@ class Strategy(BaseStrategy):
             self.market['quote'])
         buy_price = newprice - step1
         for i in range(0, self.worker['staggers']):
-            self.log.info("BUY {amt} at {price:.4g} {base}/{quote} (= {inv_price:.4g} {quote}/{base})".format(
+            self.log.info("Entering BUY order {amt} at {price:.4g} {base}/{quote} (= {inv_price:.4g} {quote}/{base})".format(
                 amt=repr(buy_wall),
                 price=buy_price,
                 inv_price=1 / buy_price,
@@ -180,15 +183,7 @@ class Strategy(BaseStrategy):
     def onmarket(self, data):
         if isinstance(
                 data, FilledOrder) and data['account_id'] == self.account['id']:
-            self.log.debug(
-                "data['quote']['asset'] = {} self.market['quote'] = {}".format(
-                    data['quote']['asset'],
-                    self.market['quote']))
-            if data['quote']['asset'] == self.market['quote']:
-                self.log.debug("Quote = quote")
-            if repr(data['quote']['asset']['id']) == repr(
-                    self.market['quote']['id']):
-                self.log.debug("quote['id'] = quote['id']")
+            self.log.info("I sold {} for {}".format(data['quote'],data['base']))
             self.reassess(data)
 
     def reassess(self, market_data=None):
@@ -205,7 +200,7 @@ class Strategy(BaseStrategy):
                 # orders
                 self.reassess(None)
         else:
-            self.log.debug("no action")
+            self.log.info("Orders unchanged")
 
     def recalculate_price(self, market_data=None):
         """Recalculate the base price according to the worker's rules
@@ -214,8 +209,14 @@ class Strategy(BaseStrategy):
         """
         still_open = set(i['id'] for i in self.account.openorders)
         self.log.debug("still_open: {}".format(still_open))
+        recalc = False
         if len(still_open) == 0:
-            self.log.info("no open orders, recalculating the startprice")
+            self.log.debug("no open orders, recalculating the startprice")
+            recalc = True
+        elif 'myorders' not in self:
+            self.log.error("we have open orders but no record, weird: recalculating startprice")
+            recalc = True
+        if recalc:
             t = self.market.ticker()
             if t['highestBid'] is None:
                 self.log.critical("no bid price available")
@@ -228,7 +229,9 @@ class Strategy(BaseStrategy):
             bid = float(t['highestBid'])
             ask = float(t['lowestAsk'])
             return bid + ((ask - bid) * self.worker['start'] / 100.0)
+        self.log.debug("myorders: {}".format(self['myorders']))
         missing = set(self['myorders'].keys()) - still_open
+        self.log.debug("missing: {}".format(missing))
         if missing:
             found_price = 0.0
             highest_diff = 0.0

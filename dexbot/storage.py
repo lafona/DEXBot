@@ -276,13 +276,12 @@ MAP_LEVELS = {
     logging.CRITICAL: 3,
     logging.FATAL: 3}
 
-
 class SQLiteHandler(logging.Handler):
     """
     Logging handler for SQLite.
     Based on Vinay Sajip's DBHandler class (http://www.red-dove.com/python_logging.html)
     """
-
+    # used by email Reporter (but has to be here so it can access db_worker)
     def emit(self, record):
         # Use default formatting:
         self.format(record)
@@ -292,8 +291,8 @@ class SQLiteHandler(logging.Handler):
             notes += " " + \
                 logging._defaultFormatter.formatException(record.exc_info)
         # Insert log record:
-        worker.execute_noreturn(
-            worker.save_log,
+        db_worker.execute_noreturn(
+            db_worker.save_log,
             record.botname,
             level,
             notes,

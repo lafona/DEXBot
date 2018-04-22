@@ -94,6 +94,7 @@ def run(ctx):
         finally:
             if ctx.obj['pidfile']:
                 os.unlink(ctx.obj['pidfile'])
+            worker.shutdown()
     except errors.NoWorkersAvailable:
         sys.exit(70)  # 70= "Software error" in /usr/include/sysexts.h
 
