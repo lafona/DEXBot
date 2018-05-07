@@ -6,16 +6,28 @@ import os
 import logging
 import threading
 import dexbot.report.chat
+from dexbot.basestrategy import ConfigElement
 
 import pudb
 
 class Reporter(sleekxmpp.ClientXMPP, dexbot.report.chat.ChatReporter):
 
     """
-    A basic SleekXMPP bot that will log in, send a message,
-    and then log out.
+    A Reporter for Jabber/XMPP
     """
 
+    @classmethod
+    def configure(kls):
+        return [
+            ConfigElement("recipient","string","",
+                          "The Jabber ID to send updates to",None),
+            ConfigElement("jid","string","",
+                          "The Jabber ID to send updates from (i.e. the bot's own ID)",None),
+            ConfigElement("password","string","",
+                          "The the bot's password",None)]
+            
+
+    
     def __init__(self, recipient, jid, password, worker_infrastructure):
         sleekxmpp.ClientXMPP.__init__(self, jid, password)
         # The session_start event will be triggered when

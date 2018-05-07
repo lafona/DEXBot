@@ -1,5 +1,6 @@
 import dexbot.storage
 import dexbot.report
+from dexbot.basestrategy import ConfigElement
 import re
 import datetime
 import smtplib
@@ -55,6 +56,20 @@ LOGLEVELS = {0: 'debug', 1: 'info', 2: 'warn', 3: 'critical'}
 
 class Reporter(dexbot.storage.Storage, dexbot.report.BaseReporter):
 
+    @classmethod
+    def configure(kls):
+        return [
+            ConfigElement("send_from","string","",
+                          "The address to send e-mail reports from",None),
+            ConfigElement("send_to","string","",
+                          "The address to send e-mail reports to",None),
+            ConfigElement("server","string","",
+                          "The SMTP server to use",None),
+            ConfigElement("user","string","",
+                          "The user name to log on the SMTP server",None),
+            ConfigElement("send_from","string","",
+                          "SMTP server password",None)]
+    
     def __init__(self, **config):
         self.worker_inf = config['worker_infrastructure']
         self.config = config
