@@ -12,7 +12,8 @@ import sys
 import appdirs
 from ruamel import yaml
 
-from .ui import (
+from dexbot import config_file
+from dexbot.ui import (
     verbose,
     chain,
     unlock,
@@ -37,7 +38,7 @@ logging.basicConfig(
 @click.group()
 @click.option(
     "--configfile",
-    default=os.path.join(appdirs.user_config_dir("dexbot"), "config.yml"),
+    default=config_file,
 )
 @click.option(
     '--verbose',
@@ -98,6 +99,7 @@ def run(ctx):
     except errors.NoWorkersAvailable:
         sys.exit(70)  # 70= "Software error" in /usr/include/sysexts.h
 
+
 @main.command()
 @click.pass_context
 def configure(ctx):
@@ -123,8 +125,10 @@ def configure(ctx):
         click.echo("starting dexbot daemon")
         os.system("systemctl --user start dexbot")
 
+
 def worker_job(worker, job):
     return lambda x, y: worker.do_next_tick(job)
+
 
 if __name__ == '__main__':
     main()

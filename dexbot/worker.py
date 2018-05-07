@@ -73,6 +73,7 @@ class WorkerInfrastructure(threading.Thread):
             self.reporters.append(reporter_instance)
 
         # set up workers
+        self.config_lock.acquire()
         for worker_name, worker in config["workers"].items():
             if "account" not in worker:
                 log_workers.critical("Worker has no account", extra={
@@ -104,6 +105,7 @@ class WorkerInfrastructure(threading.Thread):
                     'worker_name': worker_name, 'account': worker['account'],
                     'market': 'unknown', 'is_disabled': (lambda: True)
                 })
+        self.config_lock.release()
 
     def update_notify(self):
         if not self.config['workers'] or len(self.workers) == 0:

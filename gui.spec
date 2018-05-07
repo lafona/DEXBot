@@ -17,10 +17,10 @@ hiddenimports_packaging = [
     'packaging', 'packaging.version', 'packaging.specifiers', 'packaging.requirements'
 ]
 
-a = Analysis(['app.py'],
+a = Analysis(['dexbot/gui.py'],
              binaries=[],
              datas=[],
-             hiddenimports=hiddenimports_packaging + hiddenimports_strategies,
+             hiddenimports=hiddenimports_packaging + hiddenimports_strategies + ['_scrypt'],
              hookspath=['hooks'],
              runtime_hooks=['hooks/rthook-Crypto.py'],
              excludes=[],
