@@ -70,7 +70,7 @@ class MainView(QtWidgets.QMainWindow):
             self.ui.add_worker_button.setEnabled(True)
 
     def handle_add_worker(self):
-        controller = CreateWorkerController(self.main_ctrl)
+        controller = CreateWorkerController(self.main_ctrl.bitshares_instance, 'add')
         create_worker_dialog = CreateWorkerView(controller)
         return_value = create_worker_dialog.exec_()
 

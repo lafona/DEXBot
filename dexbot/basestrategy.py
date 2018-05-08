@@ -174,7 +174,6 @@ class BaseStrategy(Storage, StateMachine, Events):
              'is_disabled': lambda: self.disabled}
         )
 
-    @property
     def calculate_center_price(self):
         ticker = self.market.ticker()
         highest_bid = ticker.get("highestBid")
