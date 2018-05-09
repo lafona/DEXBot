@@ -55,6 +55,7 @@ def verbose(f):
         logging.getLogger("dexbot").addHandler(ch)
         # and don't double up on the root logger
         logging.getLogger("").handlers = []
+
         # GrapheneAPI logging
         if ctx.obj["verbose"] > 4:
             verbosity = [
@@ -186,3 +187,19 @@ def confirmalert(msg):
         click.style("Alert", fg="red") +
         "] " + msg
     )
+
+# error message "translation"
+# here we convert some of the cryptic Graphene API error messages into a longer sentence
+# particularly whe the problem is something the user themselves can fix (such as not enough
+# money in account)
+# it's here because both GUI and CLI might use it
+
+
+TRANSLATIONS = {'amount_to_sell.amount > 0': "You need to have sufficient buy and sell amounts in your account"}
+
+
+def translate_error(err):
+    for k, v in TRANSLATIONS.items():
+        if k in err:
+            return v
+    return None
