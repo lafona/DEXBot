@@ -147,10 +147,10 @@ class WorkerInfrastructure(threading.Thread):
             try:
                 self.workers[worker_name].ontick(data)
             except Exception as e:
-                self.workers[worker_name].log.exception("in .block()")
+                self.workers[worker_name].log.exception("in ontick()")
                 try:
                     self.workers[worker_name].error_ontick(e)
-                except:
+                except Exception:
                     self.workers[worker_name].log.exception("in error_ontick()")
         self.config_lock.release()
 
@@ -167,10 +167,10 @@ class WorkerInfrastructure(threading.Thread):
                 try:
                     self.workers[worker_name].onMarketUpdate(data)
                 except Exception as e:
-                    self.workers[worker_name].log.exception(".onMarketUpdate()")
+                    self.workers[worker_name].log.exception("in onMarketUpdate()")
                     try:
                         self.workers[worker_name].error_onMarketUpdate(e)
-                    except:
+                    except Exception:
                         self.workers[worker_name].log.exception("in error_onMarketUpdate()")
         self.config_lock.release()
 
@@ -185,10 +185,10 @@ class WorkerInfrastructure(threading.Thread):
                 try:
                     self.workers[worker_name].onAccount(account_update)
                 except Exception as e:
-                    self.workers[worker_name].log.exception(".onAccountUpdate()")
+                    self.workers[worker_name].log.exception("in onAccountUpdate()")
                     try:
                         self.workers[worker_name].error_onAccount(e)
-                    except:
+                    except Exception:
                         self.workers[worker_name].log.exception("in error_onAccountUpdate()")
         self.config_lock.release()
 
@@ -247,5 +247,5 @@ class WorkerInfrastructure(threading.Thread):
         strategy.purge()
 
     def do_next_tick(self, job):
-        """Add a callable to be executed on the next tick"""
-        self.jobs.append(job)
+        """ Add a callable to be executed on the next tick """
+        self.jobs.add(job)
