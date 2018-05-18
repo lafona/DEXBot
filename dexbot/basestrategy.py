@@ -362,7 +362,7 @@ class BaseStrategy(Storage, StateMachine, Events):
                 self.bitshares.txbuffer.clear()
                 return False
             else:
-                raise
+                self.log.exception("unable to cancel order")
         return True
 
     def cancel(self, orders):
