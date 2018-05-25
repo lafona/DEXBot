@@ -39,12 +39,12 @@ setup(
     #    },
     entry_points={
         'console_scripts': [
-            'dexbot-cli = dexbot.cli:main',
-            'dexbot-gui = dexbot.gui:main',
+            'dexbot = dexbot.cli:main',
+            'dexbot-shell = dexbot.cli:shell'
         ],
     },
     install_requires=[
-        "bitshares>=0.1.11",
+        "bitshares>=0.1.16",
         "uptick>=0.1.4",
         "click",
         "sqlalchemy",

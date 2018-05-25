@@ -59,21 +59,21 @@ class Reporter(dexbot.storage.Storage, dexbot.report.BaseReporter):
     @classmethod
     def configure(kls):
         return [
-            ConfigElement("send_from","string","",
-                          "The address to send e-mail reports from",None),
-            ConfigElement("send_to","string","",
-                          "The address to send e-mail reports to",None),
-            ConfigElement("server","string","",
-                          "The SMTP server to use",None),
-            ConfigElement("user","string","",
-                          "The user name to log on the SMTP server",None),
-            ConfigElement("send_from","string","",
-                          "SMTP server password",None)]
-    
+            ConfigElement("send_from", "string", "",
+                          "The address to send e-mail reports from", None),
+            ConfigElement("send_to", "string", "",
+                          "The address to send e-mail reports to", None),
+            ConfigElement("server", "string", "",
+                          "The SMTP server to use", None),
+            ConfigElement("user", "string", "",
+                          "The user name to log on the SMTP server", None),
+            ConfigElement("send_from", "string", "",
+                          "SMTP server password", None)]
+
     def __init__(self, **config):
         self.worker_inf = config['worker_infrastructure']
         self.config = config
-        
+
         dexbot.storage.Storage.__init__(self, "reporter")
         if not "lastrun" in self:
             self['lastrun'] = self.lastrun = time.time()
@@ -93,7 +93,7 @@ class Reporter(dexbot.storage.Storage, dexbot.report.BaseReporter):
                 self['lastrun'] = self.lastrun = now
 
     def run_report_week(self):
-        """Genrate report for the past week on-the-spot"""
+        """Generate report for the past week on-the-spot"""
         self.run_report(datetime.datetime.fromtimestamp(
             time.time() - 7 * 24 * 60 * 60),
             subject="DEXBot on-the-spot report")
@@ -178,4 +178,3 @@ class Reporter(dexbot.storage.Storage, dexbot.report.BaseReporter):
             smtp.login(self.config['user'], self.config['password'])
         smtp.send_message(msg)
         smtp.close()
-

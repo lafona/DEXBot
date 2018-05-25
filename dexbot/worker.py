@@ -248,4 +248,4 @@ class WorkerInfrastructure(threading.Thread):
 
     def do_next_tick(self, job):
         """ Add a callable to be executed on the next tick """
-        self.jobs.add(job)
+        self.jobs.append(job)

@@ -22,6 +22,9 @@ import collections
 import re
 import tempfile
 import shutil
+
+from bitshares import BitShares
+
 from dexbot.worker import STRATEGIES
 from dexbot.whiptail import get_whiptail
 from dexbot.find_node import start_pings, best_node
@@ -31,7 +34,7 @@ SYSTEMD_SERVICE_NAME = os.path.expanduser(
 
 SYSTEMD_SERVICE_FILE = """
 [Unit]
-Description=Dexbot
+Description=DEXBot
 
 [Service]
 Type=notify
@@ -43,6 +46,8 @@ Environment=UNLOCK={passwd}
 [Install]
 WantedBy=default.target
 """
+
+bitshares_instance = None
 
 
 def select_choice(current, choices):
@@ -97,7 +102,8 @@ def process_config_element(elem, d, config):
             config.get(elem.key, elem.default), elem.extra))
 
 
-def setup_systemd(d, config):
+def setup_systemd(d, config, shell=False):
+    global bitshares_instance
     if config.get("systemd_status", "install") == "reject":
         return  # don't nag user if previously said no
     if not os.path.exists("/etc/systemd"):
@@ -107,7 +113,8 @@ def setup_systemd(d, config):
         # so just tell cli.py to quietly restart the daemon
         config["systemd_status"] = "installed"
         return
-    if d.confirm(
+    # if shell systemd is automatic
+    if shell or d.confirm(
             "Do you want to install dexbot as a background (daemon) process?"):
         for i in ["~/.local", "~/.local/share",
                   "~/.local/share/systemd", "~/.local/share/systemd/user"]:
@@ -115,18 +122,26 @@ def setup_systemd(d, config):
             if not os.path.exists(j):
                 os.mkdir(j)
         passwd = d.prompt(
-            "The wallet password entered with uptick\nNOTE: this will be saved on disc so the bot can run unattended. This means anyone with access to this computer's file can spend all your money",
+            "The wallet password\nNOTE: this will be saved on disc so DEXBot can run unattended. This means anyone with access to this computer's disc can spend all your money!",
             password=True)
         # because we hold password be restrictive
         fd = os.open(SYSTEMD_SERVICE_NAME, os.O_WRONLY | os.O_CREAT, 0o600)
+        exe = sys.argv[0]
+        if exe.endswith('-shell'):
+            exe = exe[:-6]
         with open(fd, "w") as fp:
             fp.write(
                 SYSTEMD_SERVICE_FILE.format(
-                    exe=sys.argv[0],
+                    exe=exe,
                     passwd=passwd,
                     homedir=os.path.expanduser("~")))
         # signal cli.py to set the unit up after writing config file
         config['systemd_status'] = 'install'
+        # actually set up the wallet if required
+        if not bitshares_instance:
+            bitshares_instance = BitShares()
+        if not bitshares_instance.wallet.created():
+            bitshares_instance.wallet.create(passwd)
     else:
         config['systemd_status'] = 'reject'
 
@@ -154,48 +169,46 @@ def configure_bot(d, bot):
 
 
 def setup_reporter(d, config):
-    reporter_config = config.get('reports', {})
-    frequency = d.radiolist("DEXBot can send an e-mail report on its activities at regular intervals", select_choice(
-        str(reporter_config.get('days', 0)),
-        [("0", 'Never'), ('1', 'Daily'), ('2', 'Second-daily'), ('3', 'Third-daily'), ('7', 'Weekly')]))
-    if frequency == '0':
-        if 'reporter' in config:
-            del config['reporter']
-        return
-    reporter_config['days'] = int(frequency)
-    reporter_config['send_to'] = d.prompt(
-        "E-mail address to send to",
-        default=reporter_config.get(
-            'send_to',
-            ''))
-    reporter_config['send_from'] = d.prompt("E-mail address to send from (blank will use local user and host name)",
-                                            default=reporter_config.get('send_from', reporter_config['send_to']))
-    reporter_config['server'] = d.prompt("SMTP server to use (blank means this server)",
-                                         default=reporter_config.get('server', ''))
-    reporter_config['port'] = d.prompt("SMTP server port to use",
-                                       default=reporter_config.get('port', '25'))
-    reporter_config['login'] = d.prompt("Login username for the SMTP server (blank means don't login)",
-                                        default=reporter_config.get('login',
-                                                                    reporter_config['send_to'].split('@')[0]))
-    if reporter_config['login']:
-        reporter_config['password'] = d.prompt(
-            "SMTP server password to use", password=True)
-    config['reports'] = reporter_config
+    reporter_configs = config.get('reports', [])
+    while True:
+        action = d.menu("DEXBot can report its actions in various ways.", [
+            ("EMAIL", "Sending e-mails at regular intervals"),
+            ("JABBER", "Using the Jabber (XMPP) chat system"),
+            ("QUIT", "Exit this menu")])
+        if action == "QUIT":
+            break
+        elif action == "EMAIL":
+            report_module = 'dexbot.report.mail'
+        elif action == "JABBER":
+            report_module = 'dexbot.report.jabber'
+        mod = importlib.import_module(report_module)
+        this_reporter_config = None
+        for i in reporter_configs:
+            if i['module'] == report_module:
+                this_reporter_config = i
+        if not this_reporter_config:
+            this_reporter_config = {'module': report_module}
+            reporter_configs.append(this_reporter_config)
+        for element in mod.Reporter.configure():
+            process_config_element(element, d, this_reporter_config)
+    config['reports'] = reporter_configs
 
 
-def configure_dexbot(config):
+def configure_dexbot(config, shell=False):
+    global bitshares_instance
     d = get_whiptail()
-    bots = config.get('bots', {})
+    bots = config.get('workers', {})
     if len(bots) == 0:
         ping_results = start_pings()
         while True:
             txt = d.prompt("Your name for the bot")
-            config['bots'] = {txt: configure_bot(d, {})}
+            bots[txt] = configure_bot(d, {})
+            config['workers'] = bots
             if not d.confirm(
                     "Set up another bot?\n(DEXBOt can run multiple bots in one instance)"):
                 break
         setup_reporter(d, config)
-        setup_systemd(d, config)
+        setup_systemd(d, config, shell)
         node = best_node(ping_results)
         if node:
             config['node'] = node
@@ -204,25 +217,57 @@ def configure_dexbot(config):
             config['node'] = d.prompt(
                 "Search for best BitShares node failed.\n\nPlease enter wss:// url of chosen node.")
     else:
-        action = d.menu("You have an existing configuration.\nSelect an action:",
-                        [('NEW', 'Create a new bot'),
-                         ('DEL', 'Delete a bot'),
-                         ('EDIT', 'Edit a bot'),
-                         ('CONF', 'Redo general config')])
+        menu = [('NEW', 'Create a new bot'),
+                ('DEL', 'Delete a bot'),
+                ('EDIT', 'Edit a bot'),
+                ('REPORT', 'Configure reporting'),
+                ('NODE', 'Set the BitShares node'),
+                ('KEY', 'Add a private key'),
+                ('WIPE', 'Wipe all private keys')]
+        if shell:
+            menu.extend([('PASSWD', 'Set the account password'),
+                         ('LOGOUT' 'Logout of the server')])
+        else:
+            menu.append(('QUIT', 'Quit without saving'))
+        action = d.menu("You have an existing configuration.\nSelect an action:", menu)
         if action == 'EDIT':
             botname = d.menu("Select bot to edit", [(i, i) for i in bots])
-            config['bots'][botname] = configure_bot(d, config['bots'][botname])
+            config['workers'][botname] = configure_bot(d, config['bots'][botname])
         elif action == 'DEL':
             botname = d.menu("Select bot to delete", [(i, i) for i in bots])
-            del config['bots'][botname]
-        if action == 'NEW':
+            del config['workers'][botname]
+        elif action == 'NEW':
             txt = d.prompt("Your name for the new bot")
-            config['bots'][txt] = configure_bot(d, {})
-        else:
+            config['workers'][txt] = configure_bot(d, {})
+        elif action == 'REPORT':
             setup_reporter(d, config)
+        elif action == 'NODE':
             config['node'] = d.prompt(
                 "BitShares node to use",
                 default=config['node'])
+        elif action == 'LOGOUT':
+            sys.exit()
+        elif action == 'PASSWD':
+            os.system("passwd")
+        elif action == 'KEY':
+            if not bitshares_instance:
+                bitshares_instance = BitShares()
+            if bitshares_instance.wallet.created():
+                if not bitshares_instance.wallet.unlocked():
+                    bitshares_instance.wallet.unlock(d.prompt("Enter wallet password", password=True))
+            else:
+                bitshares_instance.wallet.create(d.prompt("Enter password for new wallet", password=True))
+            bitshares_instance.addPrivateKey(d.prompt("New private key in WIF format (begins with a \"5\")"))
+        elif action == 'WIPE':
+            if not bitshares_instance:
+                bitshares_instance = BitShares()
+            if bitshares_instance.wallet.created():
+                if d.confirm("Really wipe your wallet of keys?", default='no'):
+                    if not bitshares_instance.wallet.unlocked():
+                        bitshares_instance.wallet.unlock(d.prompt("Enter wallet password", password=True))
+                    bitshares_instance.wallet.wipe(True)
+            else:
+                d.alert("No wallet to wipe")
     d.clear()
     return config
 

@@ -126,6 +126,29 @@ def configure(ctx):
         os.system("systemctl --user start dexbot")
 
 
+def shell():
+    """ Run dexbot as a shell
+    """
+    cfg_file = config_file
+    if os.path.exists(cfg_file):
+        with open(cfg_file) as fd:
+            config = yaml.load(fd)
+    else:
+        config = {}
+        storage.mkdir_p(os.path.dirname(cfg_file))
+    while True:
+        configure_dexbot(config, True)
+        with open(cfg_file, "w") as fd:
+            yaml.dump(config, fd, default_flow_style=False)
+        if config['systemd_status'] == 'installed':
+            # we are already installed
+            os.system("systemctl --user restart dexbot")
+        if config['systemd_status'] == 'install':
+            os.system("systemctl --user enable dexbot")
+            os.system("systemctl --user start dexbot")
+            config['systemd_status'] = 'installed'
+
+
 def worker_job(worker, job):
     return lambda x, y: worker.do_next_tick(job)
 
