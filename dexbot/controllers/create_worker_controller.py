@@ -1,5 +1,6 @@
 import collections
 
+from dexbot.views.errors import gui_error
 from dexbot.controllers.main_controller import MainController
 from dexbot.views.notice import NoticeDialog
 from dexbot.views.confirmation import ConfirmationDialog
@@ -14,7 +15,8 @@ from bitsharesbase.account import PrivateKey
 
 class CreateWorkerController:
 
-    def __init__(self, bitshares_instance, mode):
+    def __init__(self, view, bitshares_instance, mode):
+        self.view = view
         self.bitshares = bitshares_instance or shared_bitshares_instance()
         self.mode = mode
 
@@ -35,7 +37,7 @@ class CreateWorkerController:
     def get_strategies():
         """ Static method for getting the strategies
         """
-        controller = CreateWorkerController(None, None)
+        controller = CreateWorkerController(None, None, None)
         return controller.strategies
 
     @property
@@ -141,19 +143,20 @@ class CreateWorkerController:
                                     'Are you sure you want to do this?')
         return dialog.exec_()
 
-    def change_strategy_form(self, ui, worker_data=None):
+    @gui_error
+    def change_strategy_form(self, worker_data=None):
         # Make sure the container is empty
-        for index in reversed(range(ui.strategy_container.count())):
-            ui.strategy_container.itemAt(index).widget().setParent(None)
+        for index in reversed(range(self.view.strategy_container.count())):
+            self.view.strategy_container.itemAt(index).widget().setParent(None)
 
-        strategy_module = ui.strategy_input.currentData()
-        ui.strategy_widget = StrategyFormWidget(self, strategy_module, worker_data)
-        ui.strategy_container.addWidget(ui.strategy_widget)
+        strategy_module = self.view.strategy_input.currentData()
+        self.view.strategy_widget = StrategyFormWidget(self, strategy_module, worker_data)
+        self.view.strategy_container.addWidget(self.view.strategy_widget)
 
         # Resize the dialog to be minimum possible height
-        width = ui.geometry().width()
-        ui.setMinimumSize(width, 0)
-        ui.resize(width, 1)
+        width = self.view.geometry().width()
+        self.view.setMinimumSize(width, 0)
+        self.view.resize(width, 1)
 
     def validate_worker_name(self, worker_name, old_worker_name=None):
         if self.mode == 'add':
@@ -178,33 +181,36 @@ class CreateWorkerController:
     def validate_account_not_in_use(self, account):
         return not self.is_account_in_use(account)
 
-    def validate_form(self, ui):
-        error_text = ''
-        base_asset = ui.base_asset_input.currentText()
-        quote_asset = ui.quote_asset_input.text()
-        worker_name = ui.worker_name_input.text()
+    @gui_error
+    def validate_form(self):
+        error_texts = []
+        base_asset = self.view.base_asset_input.currentText()
+        quote_asset = self.view.quote_asset_input.text()
+        worker_name = self.view.worker_name_input.text()
 
         if not self.validate_asset(base_asset):
-            error_text += 'Field "Base Asset" does not have a valid asset.\n'
+            error_texts.append('Field "Base Asset" does not have a valid asset.')
         if not self.validate_asset(quote_asset):
-            error_text += 'Field "Quote Asset" does not have a valid asset.\n'
+            error_texts.append('Field "Quote Asset" does not have a valid asset.')
         if not self.validate_market(base_asset, quote_asset):
-            error_text += "Market {}/{} doesn't exist.\n".format(base_asset, quote_asset)
+            error_texts.append("Market {}/{} doesn't exist.".format(base_asset, quote_asset))
         if self.mode == 'add':
-            account = ui.account_input.text()
-            private_key = ui.private_key_input.text()
+            account = self.view.account_input.text()
+            private_key = self.view.private_key_input.text()
             if not self.validate_worker_name(worker_name):
-                error_text += 'Worker name needs to be unique. "{}" is already in use.\n'.format(worker_name)
+                error_texts.append('Worker name needs to be unique. "{}" is already in use.'.format(worker_name))
             if not self.validate_account_name(account):
-                error_text += "Account doesn't exist.\n"
+                error_texts.append("Account doesn't exist.")
             if not self.validate_account(account, private_key):
-                error_text += 'Private key is invalid.\n'
+                error_texts.append('Private key is invalid.')
             if not self.validate_account_not_in_use(account):
-                error_text += 'Use a different account. "{}" is already in use.\n'.format(account)
+                error_texts.append('Use a different account. "{}" is already in use.'.format(account))
         elif self.mode == 'edit':
-            if not self.validate_worker_name(worker_name, ui.worker_name):
-                error_text += 'Worker name needs to be unique. "{}" is already in use.\n'.format(worker_name)
-        error_text = error_text.rstrip()  # Remove the extra line-ending
+            if not self.validate_worker_name(worker_name, self.view.worker_name):
+                error_texts.append('Worker name needs to be unique. "{}" is already in use.'.format(worker_name))
+
+        error_texts.extend(self.view.strategy_widget.strategy_controller.validation_errors())
+        error_text = '\n'.join(error_texts)
 
         if error_text:
             dialog = NoticeDialog(error_text)
@@ -213,28 +219,29 @@ class CreateWorkerController:
         else:
             return True
 
-    def handle_save(self, ui):
-        if not self.validate_form(ui):
+    @gui_error
+    def handle_save(self):
+        if not self.validate_form():
             return
 
         if self.mode == 'add':
             # Add the private key to the database
-            private_key = ui.private_key_input.text()
+            private_key = self.view.private_key_input.text()
             self.add_private_key(private_key)
 
-            account = ui.account_input.text()
+            account = self.view.account_input.text()
         else:
-            account = ui.account_name.text()
+            account = self.view.account_name.text()
 
-        base_asset = ui.base_asset_input.currentText()
-        quote_asset = ui.quote_asset_input.text()
-        strategy_module = ui.strategy_input.currentData()
+        base_asset = self.view.base_asset_input.currentText()
+        quote_asset = self.view.quote_asset_input.text()
+        strategy_module = self.view.strategy_input.currentData()
 
-        ui.worker_data = {
+        self.view.worker_data = {
             'account': account,
             'market': '{}/{}'.format(quote_asset, base_asset),
             'module': strategy_module,
-            **ui.strategy_widget.values
+            **self.view.strategy_widget.values
         }
-        ui.worker_name = ui.worker_name_input.text()
-        ui.accept()
+        self.view.worker_name = self.view.worker_name_input.text()
+        self.view.accept()

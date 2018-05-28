@@ -23,10 +23,10 @@ class WorkerItemWidget(QtWidgets.QWidget, Ui_widget):
         self.setupUi(self)
         self.pause_button.hide()
 
-        self.pause_button.clicked.connect(self.pause_worker)
-        self.play_button.clicked.connect(self.start_worker)
-        self.remove_button.clicked.connect(self.remove_widget_dialog)
-        self.edit_button.clicked.connect(self.handle_edit_worker)
+        self.pause_button.clicked.connect(lambda: self.pause_worker())
+        self.play_button.clicked.connect(lambda: self.start_worker())
+        self.remove_button.clicked.connect(lambda: self.remove_widget_dialog())
+        self.edit_button.clicked.connect(lambda: self.handle_edit_worker())
 
         self.setup_ui_data(config)
 
@@ -41,13 +41,13 @@ class WorkerItemWidget(QtWidgets.QWidget, Ui_widget):
         strategies = CreateWorkerController.get_strategies()
         self.set_worker_strategy(strategies[module]['name'])
 
-        profit = db_worker.execute(db_worker.get_item, worker_name, 'profit')
+        profit = db_worker.get_item(worker_name, 'profit')
         if profit:
             self.set_worker_profit(profit)
         else:
             self.set_worker_profit(0)
 
-        percentage = db_worker.execute(db_worker.get_item, worker_name, 'slider')
+        percentage = db_worker.get_item(worker_name, 'slider')
         if percentage:
             self.set_worker_slider(percentage)
         else:
@@ -55,6 +55,7 @@ class WorkerItemWidget(QtWidgets.QWidget, Ui_widget):
 
     @gui_error
     def start_worker(self):
+        self.set_status("Starting worker")
         self._start_worker()
         self.main_ctrl.create_worker(self.worker_name, self.worker_config, self.view)
 
@@ -65,6 +66,7 @@ class WorkerItemWidget(QtWidgets.QWidget, Ui_widget):
 
     @gui_error
     def pause_worker(self):
+        self.set_status("Pausing worker")
         self._pause_worker()
         self.main_ctrl.stop_worker(self.worker_name)
 
@@ -117,8 +119,8 @@ class WorkerItemWidget(QtWidgets.QWidget, Ui_widget):
 
     @gui_error
     def handle_edit_worker(self):
-        controller = CreateWorkerController(self.main_ctrl.bitshares_instance, 'edit')
-        edit_worker_dialog = EditWorkerView(controller, self.worker_name, self.worker_config)
+        edit_worker_dialog = EditWorkerView(self.main_ctrl.bitshares_instance,
+                                            self.worker_name, self.worker_config)
         return_value = edit_worker_dialog.exec_()
 
         # User clicked save
@@ -128,3 +130,6 @@ class WorkerItemWidget(QtWidgets.QWidget, Ui_widget):
             self.main_ctrl.replace_worker_config(self.worker_name, new_worker_name, edit_worker_dialog.worker_data)
             self.reload_widget(new_worker_name)
             self.worker_name = new_worker_name
+
+    def set_status(self, status):
+        self.worker_status.setText(status)

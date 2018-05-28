@@ -1,53 +1,21 @@
-from math import sqrt
-import collections
+import math
 
 from dexbot.basestrategy import BaseStrategy
 from dexbot.queue.idle_queue import idle_add
-
-from bitshares.amount import Amount
-
-NiceOrder = collections.namedtuple('NiceOrder', 'id typ price amount')
 
 
 class Strategy(BaseStrategy):
     """ Staggered Orders strategy
     """
 
-    @classmethod
-    def configure(kls):
-        return BaseStrategy.configure()+[
-            ConfigElement(
-                "spread",
-                "float",
-                5,
-                "Percentage difference between buy and sell",
-                (0, 100)),
-            ConfigElement(
-                "increment",
-                "float",
-                1,
-                "Percentage difference between each stagger",
-                (0, 100)),
-            ConfigElement(
-                "range",
-                "float",
-                0,
-                "Range of lowest/highest prices from the startprice, in powers of two. So 1 = 2 x to 0.5 x, 2 = 4x to 0.25x, and so on.",
-                (0, None)),
-            ConfigElement(
-                "start",
-                "float",
-                50.0,
-                "Starting price, as percentage of bid/ask spread",
-                (0.0, 100.0)),
-        ]
-
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.log.info("Initializing Staggered Orders")
 
         # Define Callbacks
-        #self.onMarketUpdate += self.check_orders
-        #self.onAccount += self.check_orders
+        self.onMarketUpdate += self.check_orders
+        self.onAccount += self.check_orders
+        self.ontick += self.tick
 
         self.error_ontick = self.error
         self.error_onMarketUpdate = self.error
@@ -55,143 +23,249 @@ class Strategy(BaseStrategy):
 
         self.worker_name = kwargs.get('name')
         self.view = kwargs.get('view')
-        self.spread = self.worker['spread'] / 100.0
-        self.increment = self.worker['increment'] / 100.0
-        self.upper_bound = None
-        self.lower_bound = None
-        self.start = self.worker['start'] / 100.0
-        import pdb
-        pdb.set_trace()
-        self.updated_open_orders
-        self.update_orders(self.calculate_center_price())
+        self.amount = self.worker['amount']
+        self.spread = self.worker['spread'] / 100
+        self.increment = self.worker['increment'] / 100
+        self.upper_bound = self.worker['upper_bound']
+        self.lower_bound = self.worker['lower_bound']
 
-    def error(self, *args, **kwargs):
-        self.cancel_all()
-        self.disabled = True
-        self.log.info(self.execute())
-
-    def calculate_center_price(self):
-        # for now using same algo as Follow Orders
-        t = self.market.ticker()
-        if t['highestBid'] is None:
-            self.log.critical("no bid price available")
-            self.disabled = True
-            return None
-        if t['lowestAsk'] is None or t['lowestAsk'] == 0.0:
-            self.log.critical("no ask price available")
-            self.disabled = True
-            return None
-        bid = float(t['highestBid'])
-        ask = float(t['lowestAsk'])
-        startprice = bid + ((ask - bid) * self.start)
-        if self.upper_bound is None:
-            self.upper_bound = startprice * (2**self.worker['range'])
-            self.lower_bound = startprice * (2**-self.worker['range'])
-        return startprice
-
-    def log_order(self, typ, amount, price):
-        self.log.info("{typ} order {amt:.4g} {quote} at {price:.4g} {base}/{quote} (= {inv_price:.4g} {quote}/{base})".format(
-            typ=typ,
-            amt=amount,
-            price=price,
-            inv_price=1 / price,
-            quote=self.market['quote']['symbol'],
-            base=self.market['base']['symbol']))
-
-    def nice_order_list(self):
-        """
-        Get list of orders in a nicer format
-        the tuple (id, type, price, quote_amount)
-        """
-        for o in self.orders:
-            id = o['id']
-            if o['quote']['asset']['symbol'] == self.market['quote']['symbol']:
-                typ = 'BUY'
-                price = 1 / o['price']
-                amount = float(o['quote'])
-            else:
-                typ = 'SELL'
-                price = o['price']
-                amount = float(o['base'])
-            yield NiceOrder(id, typ, price, amount)
-
-    def prices_close(self, price1, price2):
-        """Return True if two prices are within increment / 2 of
-        each other"""
-        return abs(price1 - price2) / ((price1 + price2) / 2) <= self.increment / 2
-
-    def update_orders(self, center_price):
-        if center_price is None:
-            return
-        self.log.info("Centre price is {}".format(center_price))
-
-        current_orders = list(self.nice_order_list())
-        buy_orders = []
-        buy_price = center_price * (1 - (self.spread / 2))
-
-        buy_balance = float(self.balance(self.market['base']))
-        buy_amount = buy_balance * self.increment
-
-        buy_orders.append((buy_price, buy_amount / buy_price))
-        while buy_price > self.lower_bound:
-            buy_price = buy_price / (1 + self.increment)
-            buy_amount = buy_amount * sqrt(1 + self.increment)
-            found_order = False
-            for o in current_orders:
-                if o.typ == 'BUY' and self.prices_close(buy_price, o.price):
-                    found_order = True
-                    break
-            if found_order:
-                break
-            else:
-                buy_orders.append((buy_price, buy_amount / buy_price))
-
-        buy_orders.reverse()  # enter outermost first
-
-        for price, amount in buy_orders:
-            self.log_order('BUY', amount, price)
-            self.market.buy(price, Amount(amount, self.market['quote']), account=self.account)
-
-        sell_orders = []
-        sell_price = center_price * (1 + (self.spread / 2))
-
-        sell_balance = float(self.balance(self.market['quote']))
-        sell_amount = sell_balance * self.increment
-
-        sell_orders.append((sell_price, sell_amount))
-
-        while sell_price < self.upper_bound:
-            sell_price = sell_price * (1 + (self.increment / 100.0))
-            sell_amount = sell_amount / sqrt(1 + (self.increment / 100.0))
-            found_order = False
-            for o in current_orders:
-                if o.typ == 'SELL' and self.prices_close(sell_price, o.price):
-                    found_order = True
-                    break
-            if found_order:
-                break
-            else:
-                sell_orders.append((sell_price, sell_amount))
-
-        sell_orders.reverse()  # enter outermost first
-
-        for price, amount in sell_orders:
-            self.log_order('SELL', amount, price)
-            self.market.sell(price, Amount(amount, self.market['quote']), account=self.account)
-
-    def check_orders(self, *args, **kwargs):
-        """ Tests if the orders need updating
-        """
-
-        self.update_orders(self.calculate_center_price())
+        if self['setup_done']:
+            self.place_orders()
+        else:
+            self.init_strategy()
 
         if self.view:
             self.update_gui_profit()
             self.update_gui_slider()
+
+    def error(self, *args, **kwargs):
+        self.cancel_all()
+        self.disabled = True
+
+    def init_strategy(self):
+        # Make sure no orders remain
+        self.cancel_all()
+        self.clear_orders()
+
+        center_price = self.calculate_center_price()
+        amount = self.amount
+        spread = self.spread
+        increment = self.increment
+        lower_bound = self.lower_bound
+        upper_bound = self.upper_bound
+
+        # Calculate buy prices
+        buy_prices = self.calculate_buy_prices(center_price, spread, increment, lower_bound)
+
+        # Calculate sell prices
+        sell_prices = self.calculate_sell_prices(center_price, spread, increment, upper_bound)
+
+        # Calculate buy and sell amounts
+        buy_orders, sell_orders = self.calculate_amounts(buy_prices, sell_prices, amount, spread, increment)
+
+        # Make sure there is enough balance for the buy orders
+        needed_buy_asset = 0
+        for buy_order in buy_orders:
+            needed_buy_asset += buy_order['amount'] * buy_order['price']
+        if self.balance(self.market["base"]) < needed_buy_asset:
+            self.log.critical(
+                "Insufficient buy balance, needed {} {}".format(needed_buy_asset, self.market['base']['symbol'])
+            )
+            self.disabled = True
+            return
+
+        # Make sure there is enough balance for the sell orders
+        needed_sell_asset = 0
+        for sell_order in sell_orders:
+            needed_sell_asset += sell_order['amount']
+        if self.balance(self.market["quote"]) < needed_sell_asset:
+            self.log.critical(
+                "Insufficient sell balance, needed {} {}".format(needed_sell_asset, self.market['quote']['symbol'])
+            )
+            self.disabled = True
+            return
+
+        # Place the buy orders
+        for buy_order in buy_orders:
+            order = self.market_buy(buy_order['amount'], buy_order['price'])
+            if order:
+                self.save_order(order)
+
+        # Place the sell orders
+        for sell_order in sell_orders:
+            order = self.market_sell(sell_order['amount'], sell_order['price'])
+            if order:
+                self.save_order(order)
+
+        self['setup_done'] = True
+        self.log.info("Done placing orders")
+
+    def place_reverse_order(self, order):
+        """ Replaces an order with a reverse order
+            buy orders become sell orders and sell orders become buy orders
+        """
+        if order['base']['symbol'] == self.market['base']['symbol']:  # Buy order
+            price = order['price'] * (1 + self.spread)
+            amount = order['quote']['amount']
+            new_order = self.market_sell(amount, price)
+        else:  # Sell order
+            price = (order['price'] ** -1) / (1 + self.spread)
+            amount = order['base']['amount']
+            new_order = self.market_buy(amount, price)
+
+        if new_order:
+            self.remove_order(order)
+            self.save_order(new_order)
+
+    def place_order(self, order):
+        self.remove_order(order)
+
+        if order['base']['symbol'] == self.market['base']['symbol']:  # Buy order
+            price = order['price']
+            amount = order['quote']['amount']
+            new_order = self.market_buy(amount, price)
+        else:  # Sell order
+            price = order['price'] ** -1
+            amount = order['base']['amount']
+            new_order = self.market_sell(amount, price)
+
+        self.save_order(new_order)
+
+    def place_orders(self):
+        """ Place all the orders found in the database
+        """
+        self.cancel_all()
+        orders = self.fetch_orders()
+        for order_id, order in orders.items():
+            if not self.get_order(order_id):
+                self.place_order(order)
+
+        self.log.info("Done placing orders")
+
+    def check_orders(self, *args, **kwargs):
+        """ Tests if the orders need updating
+        """
+        order_placed = False
+        orders = self.fetch_orders()
+        for order_id, order in orders.items():
+            current_order = self.get_order(order_id)
+            if not current_order:
+                self.place_reverse_order(order)
+                order_placed = True
+
+        if order_placed:
+            self.log.info("Done placing orders")
+
+        if self.view:
+            self.update_gui_profit()
+            self.update_gui_slider()
+
+    @staticmethod
+    def calculate_buy_prices(center_price, spread, increment, lower_bound):
+        buy_prices = []
+        if lower_bound > center_price / math.sqrt(1 + spread):
+            return buy_prices
+
+        buy_price = center_price / math.sqrt(1 + spread)
+        while buy_price > lower_bound:
+            buy_prices.append(buy_price)
+            buy_price = buy_price / (1 + increment)
+        return buy_prices
+
+    @staticmethod
+    def calculate_sell_prices(center_price, spread, increment, upper_bound):
+        sell_prices = []
+        if upper_bound < center_price * math.sqrt(1 + spread):
+            return sell_prices
+
+        sell_price = center_price * math.sqrt(1 + spread)
+        while sell_price < upper_bound:
+            sell_prices.append(sell_price)
+            sell_price = sell_price * (1 + increment)
+        return sell_prices
+
+    @staticmethod
+    def calculate_amounts(buy_prices, sell_prices, amount, spread, increment):
+        # Calculate buy amounts
+        buy_orders = []
+        if buy_prices:
+            highest_buy_price = buy_prices.pop(0)
+            buy_orders.append({'amount': amount, 'price': highest_buy_price})
+            for buy_price in buy_prices:
+                last_amount = buy_orders[-1]['amount']
+                current_amount = last_amount * math.sqrt(1 + increment)
+                buy_orders.append({'amount': current_amount, 'price': buy_price})
+
+        # Calculate sell amounts
+        sell_orders = []
+        if sell_prices:
+            lowest_sell_price = sell_prices.pop(0)
+            current_amount = amount * math.sqrt(1 + spread + increment)
+            sell_orders.append({'amount': current_amount, 'price': lowest_sell_price})
+            for sell_price in sell_prices:
+                last_amount = sell_orders[-1]['amount']
+                current_amount = last_amount / math.sqrt(1 + increment)
+                sell_orders.append({'amount': current_amount, 'price': sell_price})
+
+        return [buy_orders, sell_orders]
+
+    @staticmethod
+    def get_required_assets(market, amount, spread, increment, lower_bound, upper_bound):
+        if not amount or not lower_bound or not increment:
+            return None
+
+        ticker = market.ticker()
+        highest_bid = ticker.get("highestBid")
+        lowest_ask = ticker.get("lowestAsk")
+        if not float(highest_bid):
+            return None
+        elif not float(lowest_ask):
+            return None
+        else:
+            center_price = highest_bid['price'] * math.sqrt(lowest_ask['price'] / highest_bid['price'])
+
+        # Calculate buy prices
+        buy_prices = Strategy.calculate_buy_prices(center_price, spread, increment, lower_bound)
+
+        # Calculate sell prices
+        sell_prices = Strategy.calculate_sell_prices(center_price, spread, increment, upper_bound)
+
+        # Calculate buy and sell amounts
+        buy_orders, sell_orders = Strategy.calculate_amounts(
+            buy_prices, sell_prices, amount, spread, increment
+        )
+
+        needed_buy_asset = 0
+        for buy_order in buy_orders:
+            needed_buy_asset += buy_order['amount'] * buy_order['price']
+
+        needed_sell_asset = 0
+        for sell_order in sell_orders:
+            needed_sell_asset += sell_order['amount']
+
+        return [needed_buy_asset, needed_sell_asset]
+
+    def tick(self, d):
+        """ ticks come in on every block
+        """
+        if self.recheck_orders:
+            self.check_orders()
+            self.recheck_orders = False
 
     # GUI updaters
     def update_gui_profit(self):
         pass
 
     def update_gui_slider(self):
-        pass
+        ticker = self.market.ticker()
+        latest_price = ticker.get('latest').get('price')
+        order_ids = self.fetch_orders().keys()
+        total_balance = self.total_balance(order_ids)
+        total = (total_balance['quote'] * latest_price) + total_balance['base']
+
+        if not total:  # Prevent division by zero
+            percentage = 50
+        else:
+            percentage = (total_balance['base'] / total) * 100
+        idle_add(self.view.set_worker_slider, self.worker_name, percentage)
+        self['slider'] = percentage
