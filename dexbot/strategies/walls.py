@@ -13,6 +13,7 @@ class Strategy(BaseStrategy):
 
     @classmethod
     def configure(cls):
+
         return BaseStrategy.configure() + [
             ConfigElement(
                 "spread",

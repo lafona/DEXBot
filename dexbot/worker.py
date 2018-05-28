@@ -108,8 +108,11 @@ class WorkerInfrastructure(threading.Thread):
         self.config_lock.release()
 
     def update_notify(self):
-        if not self.config['workers'] or len(self.workers) == 0:
-            log.critical("No workers to launch, exiting")
+        if not self.config['workers']:
+            log.critical("No workers configured to launch, exiting")
+            raise errors.NoWorkersAvailable()
+        if not self.workers:
+            log.critical("No workers actually running")
             raise errors.NoWorkersAvailable()
         if self.notify:
             # Update the notification instance

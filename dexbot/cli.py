@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 import logging
 import os
+import os.path
+import sys
+import signal
+
 # we need to do this before importing click
 if not "LANG" in os.environ:
     os.environ['LANG'] = 'C.UTF-8'
 import click
-import signal
-import os.path
-import os
-import sys
 import appdirs
 from ruamel import yaml
 
@@ -19,12 +19,12 @@ from dexbot.ui import (
     unlock,
     configfile
 )
-
+from dexbot.cli_conf import configure_dexbot
+from dexbot import storage
 from dexbot.worker import WorkerInfrastructure
 from .cli_conf import configure_dexbot
 import dexbot.errors as errors
 
-import click
 
 log = logging.getLogger(__name__)
 
@@ -91,13 +91,23 @@ def run(ctx):
                 # signal.signal(signal.SIGUSR1, lambda x, y: worker.do_next_tick(worker.reread_config))
             except AttributeError:
                 log.debug("Cannot set all signals -- not available on this platform")
-            worker.run()
+            worker.init_workers(ctx.config)
+            if ctx.obj['systemd']:  # tell systemd we are running
+                try:
+                    import sdnotify  # a soft dependency on sdnotify -- don't crash on non-systemd systems
+                    n = sdnotify.SystemdNotifier()
+                    n.notify("READY=1")
+                except BaseException:
+                    log.debug("sdnotify not available")
+            worker.update_notify()
+            worker.notify.listen()
         finally:
             if ctx.obj['pidfile']:
                 os.unlink(ctx.obj['pidfile'])
             worker.shutdown()
     except errors.NoWorkersAvailable:
         sys.exit(70)  # 70= "Software error" in /usr/include/sysexts.h
+        # this needs to be in an outside try otherwise we will exit before the finally clause
 
 
 @main.command()
@@ -108,7 +118,7 @@ def configure(ctx):
     cfg_file = ctx.obj["configfile"]
     if os.path.exists(ctx.obj['configfile']):
         with open(ctx.obj["configfile"]) as fd:
-            config = yaml.load(fd)
+            config = yaml.safe_load(fd)
     else:
         config = {}
         storage.mkdir_p(os.path.dirname(ctx.obj['configfile']))

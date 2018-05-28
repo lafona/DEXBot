@@ -1,14 +1,13 @@
 import os
 import sys
-import click
 import logging
 import logging.config
 from datetime import datetime
-from bitshares.price import Price
 from prettytable import PrettyTable
 from functools import update_wrapper
 
 import click
+from bitshares.price import Price
 from ruamel import yaml
 from bitshares import BitShares
 from bitshares.instance import set_shared_bitshares_instance
