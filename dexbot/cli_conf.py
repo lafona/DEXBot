@@ -27,8 +27,6 @@ import shutil
 from bitshares import BitShares
 
 from dexbot.whiptail import get_whiptail
-from dexbot.find_node import start_pings, best_node
-
 
 # FIXME: auto-discovery of strategies would be cool but can't figure out a way
 STRATEGIES = [
@@ -85,10 +83,7 @@ def process_config_element(elem, d, config):
     if elem.type == "bool":
         config[elem.key] = d.confirm(elem.description)
     if elem.type in ("float", "int"):
-        txt = d.prompt(
-            elem.description, config.get(
-                elem.key, str(
-                    elem.default)))
+        txt = d.prompt(elem.description, str(config.get(elem.key, elem.default)))
         while True:
             try:
                 if elem.type == "int":
@@ -103,10 +98,7 @@ def process_config_element(elem, d, config):
                     break
             except ValueError:
                 d.alert("Not a valid value")
-            txt = d.prompt(
-                elem.description, config.get(
-                    elem.key, str(
-                        elem.default)))
+            txt = d.prompt(elem.description, str(config.get(elem.key, elem.default)))
         config[elem.key] = val
     if elem.type == "choice":
         config[elem.key] = d.radiolist(elem.description, select_choice(
@@ -219,20 +211,19 @@ def configure_dexbot(config, shell=False):
     workers = config.get('workers', {})
     config['workers'] = workers
     if len(workers) == 0:
-        ping_results = start_pings()
+        d.view_text("""Welcome to the DEXBot text-based configuration.
+You will be asked to set up at least one bot, this will then run
+in the background.
+You can use the arrow keys and RETURN to select buttons in these
+screens, the mouse does not work. Selecting Cancel will exit
+the program.
+""")
         while True:
             txt = d.prompt("Your name for the bot")
             config['workers'][txt] = configure_worker(d, {})
             if not d.confirm("Set up another bot?\n(DEXBOt can run multiple bots in one instance)"):
                 break
         setup_systemd(d, config, shell)
-        node = best_node(ping_results)
-        if node:
-            config['node'] = node
-        else:
-            # search failed, ask the user
-            config['node'] = d.prompt(
-                "Search for best BitShares node failed.\n\nPlease enter wss:// url of chosen node.")
     else:
         menu = [('NEW', 'Create a new bot'),
                 ('DEL', 'Delete a bot'),
@@ -249,7 +240,7 @@ def configure_dexbot(config, shell=False):
         action = d.menu("You have an existing configuration.\nSelect an action:", menu)
         if action == 'EDIT':
             workername = d.menu("Select bot to edit", [(i, i) for i in workers])
-            config['workers'][workername] = configure_worker(d, config['bots'][workername])
+            config['workers'][workername] = configure_worker(d, config['workers'][workername])
         elif action == 'DEL':
             workername = d.menu("Select bot to delete", [(i, i) for i in workers])
             del config['workers'][workername]
@@ -285,6 +276,8 @@ def configure_dexbot(config, shell=False):
                     bitshares_instance.wallet.wipe(True)
             else:
                 d.alert("No wallet to wipe")
+        else:
+            d.prompt("Unknown command {}".format(action))
     d.clear()
     return config
 

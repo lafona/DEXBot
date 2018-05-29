@@ -12,7 +12,7 @@ import click
 import appdirs
 from ruamel import yaml
 
-from dexbot import config_file
+from dexbot import config_file, default_config
 from dexbot.ui import (
     verbose,
     chain,
@@ -116,12 +116,12 @@ def configure(ctx):
     """ Interactively configure dexbot
     """
     cfg_file = ctx.obj["configfile"]
-    if os.path.exists(ctx.obj['configfile']):
-        with open(ctx.obj["configfile"]) as fd:
-            config = yaml.safe_load(fd)
-    else:
-        config = {}
+    if not os.path.exists(ctx.obj['configfile']):
         storage.mkdir_p(os.path.dirname(ctx.obj['configfile']))
+        with open(ctx.obj['configfile'], 'w') as fd:
+            fd.write(default_config)
+    with open(ctx.obj["configfile"]) as fd:
+        config = yaml.safe_load(fd)
     configure_dexbot(config)
     with open(cfg_file, "w") as fd:
         yaml.dump(config, fd, default_flow_style=False)
@@ -140,12 +140,9 @@ def shell():
     """ Run dexbot as a shell
     """
     cfg_file = config_file
-    if os.path.exists(cfg_file):
-        with open(cfg_file) as fd:
-            config = yaml.load(fd)
-    else:
-        config = {}
-        storage.mkdir_p(os.path.dirname(cfg_file))
+    assert os.path.exists(cfg_file), "no config file"
+    with open(cfg_file) as fd:
+        config = yaml.safe_load(fd)
     while True:
         configure_dexbot(config, True)
         with open(cfg_file, "w") as fd:

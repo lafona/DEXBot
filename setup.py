@@ -3,7 +3,7 @@
 from setuptools import setup, find_packages
 from distutils.command import build as build_module
 cmdclass = {}
-console_scripts = ['dexbot-cli = dexbot.cli:main']
+console_scripts = ['dexbot-cli = dexbot.cli:main', 'dexbot-shell = dexbot.cli:shell']
 install_requires = [
     "bitshares==0.1.16",
     "uptick>=0.1.4",
@@ -27,7 +27,7 @@ try:
         'build_ui': build_ui,
         'build': BuildCommand
     }
-    console_scripts.append('dexbot-gui = dexbot.gui:main')
+    console_scripts.extend('dexbot-gui = dexbot.gui:main')
     install_requires.extend(["pyqt-distutils"])
 except BaseException as e:
     print("GUI not available: {}".format(e))
