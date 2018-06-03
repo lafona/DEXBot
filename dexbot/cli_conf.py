@@ -25,6 +25,7 @@ import tempfile
 import shutil
 
 from bitshares import BitShares
+import bitshares.exceptions
 
 from dexbot.whiptail import get_whiptail
 
@@ -133,7 +134,7 @@ anyone with access to this computer can spend all your money""",
         fd = os.open(SYSTEMD_SERVICE_NAME, os.O_WRONLY | os.O_CREAT, 0o600)
         exe = sys.argv[0]
         if exe.endswith('-shell'):
-            exe = exe[:-6]
+            exe = exe[:-6]+'-cli'
         with open(fd, "w") as fp:
             fp.write(
                 SYSTEMD_SERVICE_FILE.format(
@@ -205,6 +206,17 @@ def setup_reporter(d, config):
     config['reports'] = reporter_configs
 
 
+def unlock_wallet(d, bitshares_instance):
+    if not bitshares_instance.wallet.unlocked():
+        while True:
+            try:
+                bitshares_instance.wallet.unlock(d.prompt("Enter wallet password", password=True))
+                return
+            except bitshares.exceptions.WrongMasterPasswordException:
+                if not d.confirm("Password wrong, do you want to try again?"):
+                    sys.exit(1)
+
+
 def configure_dexbot(config, shell=False):
     global bitshares_instance
     d = get_whiptail()
@@ -234,7 +246,7 @@ the program.
                 ('WIPE', 'Wipe all private keys')]
         if shell:
             menu.extend([('PASSWD', 'Set the account password'),
-                         ('LOGOUT' 'Logout of the server')])
+                         ('LOGOUT', 'Logout of the server')])
         else:
             menu.append(('QUIT', 'Quit without saving'))
         action = d.menu("You have an existing configuration.\nSelect an action:", menu)
@@ -261,18 +273,16 @@ the program.
             if not bitshares_instance:
                 bitshares_instance = BitShares()
             if bitshares_instance.wallet.created():
-                if not bitshares_instance.wallet.unlocked():
-                    bitshares_instance.wallet.unlock(d.prompt("Enter wallet password", password=True))
+                unlock_wallet(d, bitshares_instance)
             else:
                 bitshares_instance.wallet.create(d.prompt("Enter password for new wallet", password=True))
-            bitshares_instance.addPrivateKey(d.prompt("New private key in WIF format (begins with a \"5\")"))
+            bitshares_instance.wallet.addPrivateKey(d.prompt("New private key in WIF format (begins with a \"5\")"))
         elif action == 'WIPE':
             if not bitshares_instance:
                 bitshares_instance = BitShares()
             if bitshares_instance.wallet.created():
                 if d.confirm("Really wipe your wallet of keys?", default='no'):
-                    if not bitshares_instance.wallet.unlocked():
-                        bitshares_instance.wallet.unlock(d.prompt("Enter wallet password", password=True))
+                    unlock_wallet(d, bitshares_instance)
                     bitshares_instance.wallet.wipe(True)
             else:
                 d.alert("No wallet to wipe")
