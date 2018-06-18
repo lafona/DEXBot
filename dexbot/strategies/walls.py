@@ -8,7 +8,6 @@ from dexbot.errors import InsufficientFundsError
 class Strategy(BaseStrategy):
     """
     Walls strategy
-    This strategy simply places a buy and a sell wall
     """
 
     @classmethod

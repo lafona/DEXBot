@@ -1,5 +1,3 @@
-import sqlalchemy
-from sqlalchemy import create_engine, Table, Column, String, Integer, MetaData, DateTime, Float
 import os
 import json
 import threading
@@ -11,27 +9,18 @@ import re
 import logging
 from appdirs import user_data_dir
 
+from . import helper
+from dexbot import APP_NAME, AUTHOR
+
+import sqlalchemy
+from sqlalchemy import create_engine, Table, Column, String, Integer, MetaData, DateTime, Float
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
 Base = declarative_base()
 
 # For dexbot.sqlite file
-appname = "dexbot"
-appauthor = "Codaone Oy"
 storageDatabase = "dexbot.sqlite"
-
-
-def mkdir_p(d):
-    if os.path.isdir(d):
-        return
-    else:
-        try:
-            os.makedirs(d)
-        except FileExistsError:
-            return
-        except OSError:
-            raise
 
 
 class Config(Base):
@@ -140,6 +129,11 @@ class Storage(dict):
         if not worker:
             worker = self.category
         return db_worker.fetch_orders(worker)
+
+    @staticmethod
+    def clear_worker_data(worker):
+        db_worker.clear_orders(worker)
+        db_worker.clear(worker)
 
 
 class DatabaseWorker(threading.Thread):
@@ -410,10 +404,10 @@ class SQLiteHandler(logging.Handler):
 
 
 # Derive sqlite file directory
-data_dir = user_data_dir(appname, appauthor)
+data_dir = user_data_dir(APP_NAME, AUTHOR)
 sqlDataBaseFile = os.path.join(data_dir, storageDatabase)
 
 # Create directory for sqlite file
-mkdir_p(data_dir)
+helper.mkdir(data_dir)
 
 db_worker = DatabaseWorker()

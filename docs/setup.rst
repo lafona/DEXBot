@@ -66,6 +66,12 @@ If you want the latest development version (which may not be tested at all), use
    cd DEXBot
    pip3 install -e .
 
+<<<<<<< HEAD
+=======
+If you add the ``--user`` flag to this command, the binaries of
+``dexbot`` and ``uptick`` are located in ``~/.local/bin``.
+Otherwise they should be globally reachable.
+>>>>>>> 09c80a792cde22c20228a3efbf212a3efa42e5b2
 
 Adding Keys
 -----------

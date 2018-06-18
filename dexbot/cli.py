@@ -2,43 +2,44 @@
 import logging
 import os
 import os.path
-import sys
 import signal
+import sys
 
-# we need to do this before importing click
-if not "LANG" in os.environ:
-    os.environ['LANG'] = 'C.UTF-8'
-import click
-import appdirs
-from ruamel import yaml
-
-from dexbot import config_file, default_config
+from dexbot.config import Config, DEFAULT_CONFIG_FILE
+from dexbot.helper import initialize_orders_log
 from dexbot.ui import (
     verbose,
     chain,
     unlock,
     configfile
 )
-from dexbot.cli_conf import configure_dexbot
-from dexbot import storage
-from dexbot.worker import WorkerInfrastructure
-from .cli_conf import configure_dexbot
-import dexbot.errors as errors
+from .worker import WorkerInfrastructure
+from .cli_conf import configure_dexbot, dexbot_service_running
+from . import errors
+from . import helper
+
+# We need to do this before importing click
+if "LANG" not in os.environ:
+    os.environ['LANG'] = 'C.UTF-8'
+import click
 
 
 log = logging.getLogger(__name__)
 
-# inital logging before proper setup.
+# Initial logging before proper setup.
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s %(levelname)s %(message)s'
 )
 
+# Configure orders logging
+initialize_orders_log()
+
 
 @click.group()
 @click.option(
     "--configfile",
-    default=config_file,
+    default=DEFAULT_CONFIG_FILE,
 )
 @click.option(
     '--verbose',
@@ -77,37 +78,32 @@ def run(ctx):
         with open(ctx.obj['pidfile'], 'w') as fd:
             fd.write(str(os.getpid()))
     try:
+        worker = WorkerInfrastructure(ctx.config)
+        # Set up signalling. do it here as of no relevance to GUI
+        kill_workers = worker_job(worker, lambda: worker.stop(pause=True))
+        # These first two UNIX & Windows
+        signal.signal(signal.SIGTERM, kill_workers)
+        signal.signal(signal.SIGINT, kill_workers)
         try:
-            worker = WorkerInfrastructure(ctx.config)
-            # Set up signalling. we do it here as it's of no relevance to GUI
-            kill_workers = worker_job(worker, worker.stop)
-            # These first two signals UNIX & Windows
-            signal.signal(signal.SIGTERM, kill_workers)
-            signal.signal(signal.SIGINT, kill_workers)
+            # These signals are UNIX-only territory, will ValueError here on Windows
+            signal.signal(signal.SIGHUP, kill_workers)
+            # TODO: reload config on SIGUSR1
+            # signal.signal(signal.SIGUSR1, lambda x, y: worker.do_next_tick(worker.reread_config))
+        except ValueError:
+            log.debug("Cannot set all signals -- not available on this platform")
+        if ctx.obj['systemd']:
             try:
-                # These signals are UNIX-only territory, will throw exception at this point on Windows
-                signal.signal(signal.SIGHUP, kill_workers)
-                # TODO: reload config on SIGUSR1
-                # signal.signal(signal.SIGUSR1, lambda x, y: worker.do_next_tick(worker.reread_config))
-            except AttributeError:
-                log.debug("Cannot set all signals -- not available on this platform")
-            worker.init_workers(ctx.config)
-            if ctx.obj['systemd']:  # tell systemd we are running
-                try:
-                    import sdnotify  # a soft dependency on sdnotify -- don't crash on non-systemd systems
-                    n = sdnotify.SystemdNotifier()
-                    n.notify("READY=1")
-                except BaseException:
-                    log.debug("sdnotify not available")
-            worker.update_notify()
-            worker.notify.listen()
-        finally:
-            if ctx.obj['pidfile']:
-                os.unlink(ctx.obj['pidfile'])
-            worker.shutdown()
+                import sdnotify  # A soft dependency on sdnotify -- don't crash on non-systemd systems
+                n = sdnotify.SystemdNotifier()
+                n.notify("READY=1")
+            except BaseException:
+                log.debug("sdnotify not available")
+        worker.run()
     except errors.NoWorkersAvailable:
         sys.exit(70)  # 70= "Software error" in /usr/include/sysexts.h
-        # this needs to be in an outside try otherwise we will exit before the finally clause
+    finally:
+        if ctx.obj['pidfile']:
+            helper.remove(ctx.obj['pidfile'])
 
 
 @main.command()
@@ -115,24 +111,18 @@ def run(ctx):
 def configure(ctx):
     """ Interactively configure dexbot
     """
-    cfg_file = ctx.obj["configfile"]
-    if not os.path.exists(ctx.obj['configfile']):
-        storage.mkdir_p(os.path.dirname(ctx.obj['configfile']))
-        with open(ctx.obj['configfile'], 'w') as fd:
-            fd.write(default_config)
-    with open(ctx.obj["configfile"]) as fd:
-        config = yaml.safe_load(fd)
+    # Make sure the dexbot service isn't running while we do the config edits
+    if dexbot_service_running():
+        click.echo("Stopping dexbot daemon")
+        os.system('systemctl --user stop dexbot')
+
+    config = Config(path=ctx.obj['configfile'])
     configure_dexbot(config)
-    with open(cfg_file, "w") as fd:
-        yaml.dump(config, fd, default_flow_style=False)
-    click.echo("new configuration saved")
-    if config['systemd_status'] == 'installed':
-        # we are already installed
-        click.echo("restarting dexbot daemon")
-        os.system("systemctl --user restart dexbot")
-    if config['systemd_status'] == 'install':
-        os.system("systemctl --user enable dexbot")
-        click.echo("starting dexbot daemon")
+    config.save_config()
+
+    click.echo("New configuration saved")
+    if config.get('systemd_status', 'disabled') == 'enabled':
+        click.echo("Starting dexbot daemon")
         os.system("systemctl --user start dexbot")
 
 

@@ -10,6 +10,7 @@ import dexbot.report
 
 from dexbot.basestrategy import BaseStrategy
 
+from bitshares import BitShares
 from bitshares.notify import Notify
 from bitshares.instance import shared_bitshares_instance
 
@@ -206,7 +207,12 @@ class WorkerInfrastructure(threading.Thread):
         self.update_notify()
         self.notify.listen()
 
-    def stop(self, worker_name=None):
+    def stop(self, worker_name=None, pause=False):
+        """ Used to stop the worker(s)
+            :param str worker_name: name of the worker to stop
+            :param bool pause: optional argument which tells worker if it was
+                stopped or just paused
+        """
         if worker_name and len(self.workers) > 1:
             # Kill only the specified worker
             self.remove_market(worker_name)
@@ -215,13 +221,15 @@ class WorkerInfrastructure(threading.Thread):
                 self.config['workers'].pop(worker_name)
 
             self.accounts.remove(account)
-            self.workers[worker_name].cancel_all()
+            if pause:
+                self.workers[worker_name].pause()
             self.workers.pop(worker_name, None)
             self.update_notify()
         else:
             # Kill all of the workers
-            for worker in self.workers:
-                self.workers[worker].cancel_all()
+            if pause:
+                for worker in self.workers:
+                    self.workers[worker].pause()
             if self.notify:
                 self.notify.websocket.close()
 
@@ -247,8 +255,13 @@ class WorkerInfrastructure(threading.Thread):
     @staticmethod
     def remove_offline_worker(config, worker_name):
         # Initialize the base strategy to get control over the data
-        strategy = BaseStrategy(config, worker_name)
+        bitshares_instance = BitShares(config['node'])
+        strategy = BaseStrategy(worker_name, config, bitshares_instance=bitshares_instance)
         strategy.purge()
+
+    @staticmethod
+    def remove_offline_worker_data(worker_name):
+        BaseStrategy.purge_worker_data(worker_name)
 
     def do_next_tick(self, job):
         """ Add a callable to be executed on the next tick """

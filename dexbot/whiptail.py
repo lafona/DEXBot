@@ -4,9 +4,10 @@ import os
 import shlex
 import shutil
 import itertools
+import os
+import tempfile
 from subprocess import Popen, PIPE
 from collections import namedtuple
-import tempfile
 
 import click
 
@@ -124,7 +125,7 @@ class NoWhiptail:
     def view_text(self, text):
         click.echo_via_pager(text)
 
-    def menu(self, msg='', items=(), prefix=' - ', default=0):
+    def menu(self, msg='', items=(), default=0):
         click.echo(msg + '\n')
         if isinstance(items, dict):
             items = list(items.items())
@@ -137,7 +138,7 @@ class NoWhiptail:
         ret = items[ret - 1]
         return ret[0]
 
-    def radiolist(self, msg='', items=(), prefix=' - '):
+    def radiolist(self, msg='', items=()):
         d = 0
         default = 0
         for k, v, s in items:
@@ -147,12 +148,12 @@ class NoWhiptail:
         return self.menu(msg, [(k, v) for k, v, s in items], default=default)
 
     def clear(self):
-        pass  # dont tidy the screen
+        pass  # Don't tidy the screen
 
 
 def get_whiptail():
     if shutil.which("whiptail"):
         d = Whiptail()
     else:
-        d = NoWhiptail()  # use our own fake whiptail
+        d = NoWhiptail()  # Use our own fake whiptail
     return d

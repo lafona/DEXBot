@@ -1,20 +1,23 @@
 from .ui.edit_worker_window_ui import Ui_Dialog
-from dexbot.controllers.create_worker_controller import CreateWorkerController
+from dexbot.controllers.worker_controller import WorkerController, UppercaseValidator
 
 from PyQt5 import QtWidgets
 
 
 class EditWorkerView(QtWidgets.QDialog, Ui_Dialog):
 
-    def __init__(self, bitshares_instance, worker_name, config):
+    def __init__(self, parent_widget, bitshares_instance, worker_name, config):
         super().__init__()
         self.worker_name = worker_name
         self.strategy_widget = None
-        controller = CreateWorkerController(self, bitshares_instance, 'edit')
+        controller = WorkerController(self, bitshares_instance, 'edit')
         self.controller = controller
+        self.parent_widget = parent_widget
 
         self.setupUi(self)
         worker_data = config['workers'][worker_name]
+
+        validator = UppercaseValidator(self)
 
         # Todo: Using a model here would be more Qt like
         # Populate the comboboxes
@@ -31,10 +34,19 @@ class EditWorkerView(QtWidgets.QDialog, Ui_Dialog):
         self.quote_asset_input.setText(self.controller.get_quote_asset(worker_data))
         self.account_name.setText(self.controller.get_account(worker_data))
 
+        # Validating assets fields
+        self.base_asset_input.setValidator(validator)
+        self.quote_asset_input.setValidator(validator)
+
         # Set signals
         self.strategy_input.currentTextChanged.connect(lambda: controller.change_strategy_form())
         self.save_button.clicked.connect(lambda: self.controller.handle_save())
         self.cancel_button.clicked.connect(lambda: self.reject())
+        self.remove_button.clicked.connect(self.handle_remove)
 
         self.controller.change_strategy_form(worker_data)
         self.worker_data = {}
+
+    def handle_remove(self):
+        self.parent_widget.remove_widget_dialog()
+        self.reject()

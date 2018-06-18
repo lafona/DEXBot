@@ -1,20 +1,20 @@
 import logging
 import sys
 
-from dexbot import config_file, VERSION
+from dexbot import VERSION
+from dexbot.helper import initialize_orders_log
 from dexbot.worker import WorkerInfrastructure
-
 from dexbot.views.errors import PyQtHandler
 
-from ruamel.yaml import YAML
 from bitshares.instance import set_shared_bitshares_instance
 
 
 class MainController:
 
-    def __init__(self, bitshares_instance):
+    def __init__(self, bitshares_instance, config):
         self.bitshares_instance = bitshares_instance
         set_shared_bitshares_instance(bitshares_instance)
+        self.config = config
         self.worker_manager = None
 
         # Configure logging
@@ -31,10 +31,13 @@ class MainController:
         logger.info("DEXBot {} on python {} {}".format(VERSION, sys.version[:6], sys.platform), extra={
                     'worker_name': 'NONE', 'account': 'NONE', 'market': 'NONE'})
 
+        # Configure orders logging
+        initialize_orders_log()
+
     def set_info_handler(self, handler):
         self.pyqt_handler.set_info_handler(handler)
 
-    def create_worker(self, worker_name, config, view):
+    def start_worker(self, worker_name, config, view):
         # Todo: Add some threading here so that the GUI doesn't freeze
         if self.worker_manager and self.worker_manager.is_alive():
             self.worker_manager.add_worker(worker_name, config)
@@ -43,8 +46,8 @@ class MainController:
             self.worker_manager.daemon = True
             self.worker_manager.start()
 
-    def stop_worker(self, worker_name):
-        self.worker_manager.stop(worker_name)
+    def pause_worker(self, worker_name):
+        self.worker_manager.stop(worker_name, pause=True)
 
     def remove_worker(self, worker_name):
         # Todo: Add some threading here so that the GUI doesn't freeze
@@ -55,75 +58,14 @@ class MainController:
                 self.worker_manager.stop(worker_name)
             else:
                 # Worker not running
-                config = self.get_worker_config(worker_name)
+                config = self.config.get_worker_config(worker_name)
                 WorkerInfrastructure.remove_offline_worker(config, worker_name)
         else:
             # Worker manager not running
-            config = self.get_worker_config(worker_name)
+            config = self.config.get_worker_config(worker_name)
             WorkerInfrastructure.remove_offline_worker(config, worker_name)
 
     @staticmethod
-    def load_config():
-        yaml = YAML()
-        with open(config_file, 'r') as f:
-            return yaml.load(f)
-
-    @staticmethod
-    def get_workers_data():
-        """
-        Returns dict of all the workers data
-        """
-        with open(config_file, 'r') as f:
-            yaml = YAML()
-            return yaml.load(f)['workers']
-
-    @staticmethod
-    def get_worker_config(worker_name):
-        """
-        Returns config file data with only the data from a specific worker
-        """
-        with open(config_file, 'r') as f:
-            yaml = YAML()
-            config = yaml.load(f)
-            config['workers'] = {worker_name: config['workers'][worker_name]}
-            return config
-
-    @staticmethod
-    def remove_worker_config(worker_name):
-        yaml = YAML()
-        with open(config_file, 'r') as f:
-            config = yaml.load(f)
-
-        config['workers'].pop(worker_name, None)
-
-        with open(config_file, "w") as f:
-            yaml.dump(config, f)
-
-    @staticmethod
-    def add_worker_config(worker_name, worker_data):
-        yaml = YAML()
-        with open(config_file, 'r') as f:
-            config = yaml.load(f)
-
-        config['workers'][worker_name] = worker_data
-
-        with open(config_file, "w") as f:
-            yaml.dump(config, f)
-
-    @staticmethod
-    def replace_worker_config(worker_name, new_worker_name, worker_data):
-        yaml = YAML()
-        with open(config_file, 'r') as f:
-            config = yaml.load(f)
-
-        workers = config['workers']
-        # Rotate the dict keys to keep order
-        for _ in range(len(workers)):
-            key, value = workers.popitem(False)
-            if worker_name == key:
-                workers[new_worker_name] = worker_data
-            else:
-                workers[key] = value
-
-        with open(config_file, "w") as f:
-            yaml.dump(config, f)
+    def create_worker(worker_name):
+        # Deletes old worker's data
+        WorkerInfrastructure.remove_offline_worker_data(worker_name)

@@ -1,3 +1,4 @@
+import datetime
 import logging
 import collections
 import time
@@ -5,10 +6,12 @@ import math
 
 from .storage import Storage
 from .statemachine import StateMachine
+from .config import Config
 
 from events import Events
 import bitsharesapi
 import bitsharesapi.exceptions
+import bitshares.exceptions
 from bitshares.amount import Amount
 from bitshares.market import Market
 from bitshares.account import Account
@@ -18,22 +21,22 @@ from .storage import Storage
 from .statemachine import StateMachine
 from . import graph
 
-ConfigElement = collections.namedtuple(
-    'ConfigElement', 'key type default description extra')
-# workers need to specify their own configuration values
+
+ConfigElement = collections.namedtuple('ConfigElement', 'key type default description extra')
+# Bots need to specify their own configuration values
 # I want this to be UI-agnostic so a future web or GUI interface can use it too
 # so each bot can have a class method 'configure' which returns a list of ConfigElement
-# named tuples. tuple fields as follows.
-# key: the key in the worker config dictionary that gets saved back to config.yml
-# type: one of "int", "float", "bool", "string", "choice"
-# default: the default value. must be right type.
-# description: comments to user, full sentences encouraged
-# extra:
-#       for int & float: a (min, max) tuple
-#       for string: a regular expression, entries must match it, can be None which equivalent to .*
-#       for bool, ignored
-#       for choice: a list of choices, choices are in turn (tag, label) tuples. labels get presented to user, and tag is used
-#       as the value saved back to the config dict
+# named tuples. Tuple fields as follows.
+# Key: the key in the bot config dictionary that gets saved back to config.yml
+# Type: one of "int", "float", "bool", "string", "choice"
+# Default: the default value. must be right type.
+# Description: comments to user, full sentences encouraged
+# Extra:
+#       For int & float: a (min, max) tuple
+#       For string: a regular expression, entries must match it, can be None which equivalent to .*
+#       For bool, ignored
+#       For choice: a list of choices, choices are in turn (tag, label) tuples.
+#       labels get presented to user, and tag is used as the value saved back to the config dict
 
 
 MAX_TRIES = 3
@@ -88,7 +91,7 @@ class BaseStrategy(Storage, StateMachine, Events):
     ]
 
     @classmethod
-    def configure(kls):
+    def configure(cls):
         """
         Return a list of ConfigElement objects defining the configuration values for
         this class
@@ -101,14 +104,15 @@ class BaseStrategy(Storage, StateMachine, Events):
         # these configs are common to all workers
         return [
             ConfigElement("account", "string", "", "BitShares account name for the bot to operate with", ""),
-            ConfigElement("market", "string", "USD/BTS",
-                          "BitShares market to operate on, in the format ASSET/OTHERASSET, for example \"USD/BTS\"", r"[A-Z\.]+/[A-Z\.]+")
+            ConfigElement("market", "string", "USD:BTS",
+                          "BitShares market to operate on, in the format ASSET:OTHERASSET, for example \"USD:BTS\"",
+                          "[A-Z]+[:\/][A-Z]+")
         ]
 
     def __init__(
         self,
-        config,
         name,
+        config=None,
         onAccount=None,
         onOrderMatched=None,
         onOrderPlaced=None,
@@ -147,7 +151,11 @@ class BaseStrategy(Storage, StateMachine, Events):
         # Redirect this event to also call order placed and order matched
         self.onMarketUpdate += self._callbackPlaceFillOrders
 
-        self.config = config
+        if config:
+            self.config = config
+        else:
+            self.config = config = Config.get_worker_config_file(name)
+
         self.worker = config["workers"][name]
         self._account = Account(
             self.worker["account"],
@@ -178,7 +186,11 @@ class BaseStrategy(Storage, StateMachine, Events):
              'is_disabled': lambda: self.disabled}
         )
 
-    def calculate_center_price(self, suppress_errors=False):
+        self.orders_log = logging.LoggerAdapter(
+            logging.getLogger('dexbot.orders_log'), {}
+        )
+
+    def _calculate_center_price(self, suppress_errors=False):
         ticker = self.market.ticker()
         highest_bid = ticker.get("highestBid")
         lowest_ask = ticker.get("lowestAsk")
@@ -200,31 +212,47 @@ class BaseStrategy(Storage, StateMachine, Events):
         center_price = highest_bid['price'] * math.sqrt(lowest_ask['price'] / highest_bid['price'])
         return center_price
 
-    def calculate_offset_center_price(self, spread, center_price=None, order_ids=None):
+    def calculate_center_price(self, center_price=None,
+                               asset_offset=False, spread=None, order_ids=None, manual_offset=0):
         """ Calculate center price which shifts based on available funds
         """
         if center_price is None:
             # No center price was given so we simply calculate the center price
-            calculated_center_price = self.calculate_center_price()
-            center_price = calculated_center_price
+            calculated_center_price = self._calculate_center_price()
         else:
             # Center price was given so we only use the calculated center price
             # for quote to base asset conversion
-            calculated_center_price = self.calculate_center_price(True)
+            calculated_center_price = self._calculate_center_price(True)
             if not calculated_center_price:
                 calculated_center_price = center_price
 
-        total_balance = self.total_balance(order_ids)
-        total = (total_balance['quote'] * calculated_center_price) + total_balance['base']
+        if center_price:
+            calculated_center_price = center_price
 
-        if not total:  # Prevent division by zero
-            percentage = 0
-        else:
-            percentage = (total_balance['base'] / total)
-        lowest_price = center_price / math.sqrt(1 + spread)
-        highest_price = center_price * math.sqrt(1 + spread)
-        offset_center_price = ((highest_price - lowest_price) * percentage) + lowest_price
-        return offset_center_price
+        if asset_offset:
+            total_balance = self.total_balance(order_ids)
+            total = (total_balance['quote'] * calculated_center_price) + total_balance['base']
+
+            if not total:  # Prevent division by zero
+                balance = 0
+            else:
+                # Returns a value between -1 and 1
+                balance = (total_balance['base'] / total) * 2 - 1
+
+            if balance < 0:
+                # With less of base asset center price should be offset downward
+                calculated_center_price = calculated_center_price / math.sqrt(1 + spread * (balance * -1))
+            elif balance > 0:
+                # With more of base asset center price will be offset upwards
+                calculated_center_price = calculated_center_price * math.sqrt(1 + spread * balance)
+            else:
+                calculated_center_price = calculated_center_price
+
+        # Calculate final_offset_price if manual center price offset is given
+        if manual_offset:
+            calculated_center_price = calculated_center_price + (calculated_center_price * manual_offset)
+
+        return calculated_center_price
 
     @property
     def orders(self):
@@ -362,7 +390,10 @@ class BaseStrategy(Storage, StateMachine, Events):
                 self.bitshares.txbuffer.clear()
                 return False
             else:
-                self.log.exception("unable to cancel order")
+                self.log.exception("Unable to cancel order")
+        except bitshares.exceptions.MissingKeyError:
+            self.log.exception('Unable to cancel order(s), private key missing.')
+
         return True
 
     def cancel(self, orders):
@@ -387,7 +418,14 @@ class BaseStrategy(Storage, StateMachine, Events):
             self.cancel(self.orders)
         self.log.info("Orders canceled")
 
-    def market_buy(self, amount, price, return_none=False):
+    def pause(self):
+        """ Pause the worker
+        """
+        # By default, just call cancel_all(); strategies may override this method
+        self.cancel_all()
+        self.clear_orders()
+
+    def market_buy(self, amount, price, return_none=False, *args, **kwargs):
         symbol = self.market['base']['symbol']
         precision = self.market['base']['precision']
         base_amount = self.truncate(price * amount, precision)
@@ -412,7 +450,9 @@ class BaseStrategy(Storage, StateMachine, Events):
             price,
             Amount(amount=amount, asset=self.market["quote"]),
             account=self.account.name,
-            returnOrderId="head"
+            returnOrderId="head",
+            *args,
+            **kwargs
         )
         self.log.debug('Placed buy order {}'.format(buy_transaction))
         buy_order = self.get_order(buy_transaction['orderid'], return_none=return_none)
@@ -424,7 +464,7 @@ class BaseStrategy(Storage, StateMachine, Events):
 
         return buy_order
 
-    def market_sell(self, amount, price, return_none=False):
+    def market_sell(self, amount, price, return_none=False, *args, **kwargs):
         symbol = self.market['quote']['symbol']
         precision = self.market['quote']['precision']
         quote_amount = self.truncate(amount, precision)
@@ -449,7 +489,9 @@ class BaseStrategy(Storage, StateMachine, Events):
             price,
             Amount(amount=amount, asset=self.market["quote"]),
             account=self.account.name,
-            returnOrderId="head"
+            returnOrderId="head",
+            *args,
+            **kwargs
         )
         self.log.debug('Placed sell order {}'.format(sell_transaction))
         sell_order = self.get_order(sell_transaction['orderid'], return_none=return_none)
@@ -497,6 +539,10 @@ class BaseStrategy(Storage, StateMachine, Events):
                                  self.market['quote']['symbol'],
                                  self.market['base']['symbol'])
         return graph.do_graph(data)
+
+    @staticmethod
+    def purge_worker_data(worker_name):
+        Storage.clear_worker_data(worker_name)
 
     @staticmethod
     def get_order_amount(order, asset_type):
@@ -598,3 +644,30 @@ class BaseStrategy(Storage, StateMachine, Events):
         """ Change the decimal point of a number without rounding
         """
         return math.floor(number * 10 ** decimals) / 10 ** decimals
+
+    def write_order_log(self, worker_name, order):
+        operation_type = 'TRADE'
+
+        if order['base']['symbol'] == self.market['base']['symbol']:
+            base_symbol = order['base']['symbol']
+            base_amount = -order['base']['amount']
+            quote_symbol = order['quote']['symbol']
+            quote_amount = order['quote']['amount']
+        else:
+            base_symbol = order['quote']['symbol']
+            base_amount = order['quote']['amount']
+            quote_symbol = order['base']['symbol']
+            quote_amount = -order['base']['amount']
+
+        message = '{};{};{};{};{};{};{};{}'.format(
+            worker_name,
+            order['id'],
+            operation_type,
+            base_symbol,
+            base_amount,
+            quote_symbol,
+            quote_amount,
+            datetime.datetime.now().isoformat()
+        )
+
+        self.orders_log.info(message)

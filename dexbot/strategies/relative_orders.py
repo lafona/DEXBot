@@ -1,7 +1,7 @@
 import math
 
 from dexbot.basestrategy import BaseStrategy, ConfigElement
-from dexbot.queue.idle_queue import idle_add
+from dexbot.qt_queue.idle_queue import idle_add
 
 
 class Strategy(BaseStrategy):
@@ -11,12 +11,21 @@ class Strategy(BaseStrategy):
     @classmethod
     def configure(cls):
         return BaseStrategy.configure() + [
-            ConfigElement('center_price_dynamic', 'bool', False, "Dynamic centre price", None),
-            ConfigElement('center_price', 'float', 0.0, "Initial center price", (0, 0, None)),
             ConfigElement('amount_relative', 'bool', False,
-                          "Amount is expressed as a percentage of the account balance of quote/base asset", None),
-            ConfigElement('amount', 'float', 1.0, 'The amount of buy/sell orders', (0.0, None)),
-            ConfigElement('spread', 'float', 5.0, 'The percentage difference between buy and sell', (0.0, 100.0))]
+                          'Amount is expressed as a percentage of the account balance of quote/base asset', None),
+            ConfigElement('amount', 'float', 1.0,
+                          'The amount of buy/sell orders', (0.0, None)),
+            ConfigElement('center_price_dynamic', 'bool', True,
+                          'Dynamic centre price', None),
+            ConfigElement('center_price', 'float', 0.0,
+                          'Initial center price', (0, 0, None)),
+            ConfigElement('center_price_offset', 'bool', False,
+                          'Center price offset based on asset balances', None),
+            ConfigElement('spread', 'float', 5.0,
+                          'The percentage difference between buy and sell (Spread)', (0.0, 100.0)),
+            ConfigElement('manual_offset', 'float', 0.0,
+                          'Manual center price offset', (-50.0, 100.0))
+        ]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -37,7 +46,8 @@ class Strategy(BaseStrategy):
             self.center_price = self.worker["center_price"]
 
         self.is_relative_order_size = self.worker['amount_relative']
-        self.is_center_price_offset = self.worker.get('center_price_offset', False)
+        self.is_asset_offset = self.worker.get('center_price_offset', False)
+        self.manual_offset = self.worker.get('manual_offset', 0) / 100
         self.order_size = float(self.worker['amount'])
         self.spread = self.worker.get('spread') / 100
 
@@ -76,15 +86,21 @@ class Strategy(BaseStrategy):
 
     def calculate_order_prices(self):
         if self.is_center_price_dynamic:
-            if self.is_center_price_offset:
-                self.center_price = self.calculate_offset_center_price(
-                    self.spread, order_ids=self['order_ids'])
-            else:
-                self.center_price = self.calculate_center_price()
+            self.center_price = self.calculate_center_price(
+                None,
+                self.is_asset_offset,
+                self.spread,
+                self['order_ids'],
+                self.manual_offset
+            )
         else:
-            if self.is_center_price_offset:
-                self.center_price = self.calculate_offset_center_price(
-                    self.spread, self.center_price, self['order_ids'])
+            self.center_price = self.calculate_center_price(
+                self.center_price,
+                self.is_asset_offset,
+                self.spread,
+                self['order_ids'],
+                self.manual_offset
+            )
 
         self.buy_price = self.center_price / math.sqrt(1 + self.spread)
         self.sell_price = self.center_price * math.sqrt(1 + self.spread)
@@ -97,10 +113,7 @@ class Strategy(BaseStrategy):
 
         # Cancel the orders before redoing them
         self.cancel_all()
-
-        # Mark the orders empty
-        self['buy_order'] = {}
-        self['sell_order'] = {}
+        self.clear_orders()
 
         order_ids = []
 
@@ -110,13 +123,13 @@ class Strategy(BaseStrategy):
         # Buy Side
         buy_order = self.market_buy(amount_base, self.buy_price, True)
         if buy_order:
-            self['buy_order'] = buy_order
+            self.save_order(buy_order)
             order_ids.append(buy_order['id'])
 
         # Sell Side
         sell_order = self.market_sell(amount_quote, self.sell_price, True)
         if sell_order:
-            self['sell_order'] = sell_order
+            self.save_order(sell_order)
             order_ids.append(sell_order['id'])
 
         self['order_ids'] = order_ids
@@ -130,16 +143,25 @@ class Strategy(BaseStrategy):
     def check_orders(self, *args, **kwargs):
         """ Tests if the orders need updating
         """
-        stored_sell_order = self['sell_order']
-        stored_buy_order = self['buy_order']
-        current_sell_order = self.get_order(stored_sell_order)
-        current_buy_order = self.get_order(stored_buy_order)
+        orders = self.fetch_orders()
 
-        if not current_sell_order or not current_buy_order:
-            # Either buy or sell order is missing, update both orders
+        if not orders:
             self.update_orders()
         else:
-            self.log.info("Orders correct on market")
+            orders_changed = False
+
+            # Loop trough the orders and look for changes
+            for order_id, order in orders.items():
+                current_order = self.get_order(order_id)
+
+                if not current_order:
+                    orders_changed = True
+                    self.write_order_log(self.worker_name, order)
+
+            if orders_changed:
+                self.update_orders()
+            else:
+                self.log.info("Orders correct on market")
 
         if self.view:
             self.update_gui_profit()
@@ -157,8 +179,17 @@ class Strategy(BaseStrategy):
 
     def update_gui_slider(self):
         ticker = self.market.ticker()
-        latest_price = ticker.get('latest').get('price')
-        total_balance = self.total_balance(self['order_ids'])
+        latest_price = ticker.get('latest', {}).get('price', None)
+        if not latest_price:
+            return
+
+        order_ids = None
+        orders = self.fetch_orders()
+
+        if orders:
+            order_ids = orders.keys()
+
+        total_balance = self.total_balance(order_ids)
         total = (total_balance['quote'] * latest_price) + total_balance['base']
 
         if not total:  # Prevent division by zero

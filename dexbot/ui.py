@@ -2,12 +2,9 @@ import os
 import sys
 import logging
 import logging.config
-from datetime import datetime
-from prettytable import PrettyTable
 from functools import update_wrapper
 
 import click
-from bitshares.price import Price
 from ruamel import yaml
 from bitshares import BitShares
 from bitshares.instance import set_shared_bitshares_instance
@@ -38,9 +35,12 @@ def verbose(f):
             formatter1 = logging.Formatter(
                 '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
             formatter2 = logging.Formatter(
-                '%(asctime)s - bot %(botname)s using account %(account)s on %(market)s - %(levelname)s - %(message)s')
+                '%(asctime)s - %(worker_name)s using account %(account)s on %(market)s - %(levelname)s - %(message)s')
+
+        # Use special format for special workers logger
+        logger = logging.getLogger("dexbot.per_worker")
         level = getattr(logging, verbosity.upper())
-        # use special format for special bots logger
+        logger.setLevel(level)
         ch = logging.StreamHandler()
         ch.setFormatter(formatter2)
         logging.getLogger("dexbot.per_bot").addHandler(ch)
@@ -102,15 +102,15 @@ def unlock(f):
                     pwd = os.environ["UNLOCK"]
                 else:
                     if systemd:
-                        # no user available to interact with
+                        # No user available to interact with
                         log.critical("Passphrase not available, exiting")
-                        sys.exit(78)  # 'configuation error' in sysexits.h
+                        sys.exit(78)  # 'configuration error' in sysexits.h
                     pwd = click.prompt(
                         "Current Wallet Passphrase", hide_input=True)
                 ctx.bitshares.wallet.unlock(pwd)
             else:
                 if systemd:
-                    # no user available to interact with
+                    # No user available to interact with
                     log.critical("Wallet not installed, cannot run")
                     sys.exit(78)
                 click.echo("No wallet installed yet. Creating ...")
@@ -129,10 +129,9 @@ def configfile(f):
         try:
             ctx.config = yaml.safe_load(open(ctx.obj["configfile"]))
         except FileNotFoundError:
-            alert(
-                "Looking for the config file in %s\nNot found!\nTry running 'dexbot configure' to generate\n" %
-                ctx.obj['configfile'])
-            sys.exit(78)  # 'configuation error' in sysexits.h
+            alert("Looking for the config file in %s\nNot found!\n"
+                  "Try running 'dexbot configure' to generate\n" % ctx.obj['configfile'])
+            sys.exit(78)  # 'configuration error' in sysexits.h
         return ctx.invoke(f, *args, **kwargs)
     return update_wrapper(new_func, f)
 

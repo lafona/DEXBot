@@ -1,4 +1,4 @@
-from dexbot.queue.idle_queue import idle_add
+from dexbot.qt_queue.idle_queue import idle_add
 from dexbot.views.errors import gui_error
 from dexbot.strategies.staggered_orders import Strategy as StaggeredOrdersStrategy
 
@@ -52,6 +52,7 @@ class RelativeOrdersController:
         self.view.strategy_widget.amount_input.setValue(float(worker_data.get('amount', 0)))
         self.view.strategy_widget.center_price_input.setValue(worker_data.get('center_price', 0))
         self.view.strategy_widget.spread_input.setValue(worker_data.get('spread', 5))
+        self.view.strategy_widget.manual_offset_input.setValue(worker_data.get('manual_offset', 0))
 
         if worker_data.get('center_price_dynamic', True):
             self.view.strategy_widget.center_price_dynamic_checkbox.setChecked(True)
@@ -80,7 +81,8 @@ class RelativeOrdersController:
             'center_price': self.view.strategy_widget.center_price_input.value(),
             'center_price_dynamic': self.view.strategy_widget.center_price_dynamic_checkbox.isChecked(),
             'center_price_offset': self.view.strategy_widget.center_price_offset_checkbox.isChecked(),
-            'spread': self.view.strategy_widget.spread_input.value()
+            'spread': self.view.strategy_widget.spread_input.value(),
+            'manual_offset': self.view.strategy_widget.manual_offset_input.value()
         }
         return data
 
@@ -112,6 +114,14 @@ class StaggeredOrdersController:
         widget.spread_input.setValue(worker_data.get('spread', 6))
         widget.lower_bound_input.setValue(worker_data.get('lower_bound', 0.000001))
         widget.upper_bound_input.setValue(worker_data.get('upper_bound', 1000000))
+
+        self.view.strategy_widget.center_price_input.setValue(worker_data.get('center_price', 0))
+
+        if worker_data.get('center_price_dynamic', True):
+            self.view.strategy_widget.center_price_dynamic_checkbox.setChecked(True)
+        else:
+            self.view.strategy_widget.center_price_dynamic_checkbox.setChecked(False)
+            self.view.strategy_widget.center_price_input.setDisabled(False)
 
     @gui_error
     def on_value_change(self):
@@ -171,6 +181,8 @@ class StaggeredOrdersController:
         data = {
             'amount': self.view.strategy_widget.amount_input.value(),
             'spread': self.view.strategy_widget.spread_input.value(),
+            'center_price': self.view.strategy_widget.center_price_input.value(),
+            'center_price_dynamic': self.view.strategy_widget.center_price_dynamic_checkbox.isChecked(),
             'increment': self.view.strategy_widget.increment_input.value(),
             'lower_bound': self.view.strategy_widget.lower_bound_input.value(),
             'upper_bound': self.view.strategy_widget.upper_bound_input.value()
