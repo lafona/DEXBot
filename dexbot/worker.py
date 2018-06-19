@@ -232,6 +232,7 @@ class WorkerInfrastructure(threading.Thread):
                     self.workers[worker].pause()
             if self.notify:
                 self.notify.websocket.close()
+            self.shutdown()
 
     def remove_worker(self, worker_name=None):
         if worker_name:
