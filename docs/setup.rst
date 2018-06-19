@@ -22,7 +22,7 @@ On Ubuntu/Debian/Raspian
 Do::
 
   sudo apt-get update
-  sudo apt-get install -y gcc libssl-dev python3-pip python3-dev whiptail inetutils-ping
+  sudo apt-get install -y --install-recommends gcc libssl-dev python3-pip python3-dev whiptail inetutils-ping
 
 On some Ubuntu systems, it will complain about missing packages: you first need to make sure you have
 the ``universe`` repository::
@@ -57,21 +57,17 @@ Installation
 ------------
 
 ::
-
-  sudo -H pip3 install https://github.com/ihaywood3/DEXBot/archive/master.zip
+  sudo -H pip3 install https://github.com/Codaone/DEXBot/archive/master.zip
 
 If you want the latest development version (which may not be tested at all), use git to download::
 
    git clone git://github.com/ihaywood3/DEXBot/
    cd DEXBot
-   pip3 install -e .
+   sudo -H pip3 install -e .
 
-<<<<<<< HEAD
-=======
-If you add the ``--user`` flag to this command, the binaries of
-``dexbot`` and ``uptick`` are located in ``~/.local/bin``.
-Otherwise they should be globally reachable.
->>>>>>> 09c80a792cde22c20228a3efbf212a3efa42e5b2
+Do not use the ``--user`` flag unless you understand its implications.
+
+pip3 may complain about wanting to upgrade: this can be ignored.
 
 Adding Keys
 -----------
