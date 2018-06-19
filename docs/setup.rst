@@ -100,7 +100,7 @@ Configuration
 
 ``dexbot`` can be configured using::
 
-  dexbot configure
+  dexbot-cli configure
 
 This will walk you through the configuration process.
 Read more about this in the :doc:`configuration`.

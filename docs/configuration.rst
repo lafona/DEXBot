@@ -70,7 +70,7 @@ Manual Running
 
 If you are not using systemd, the bot can be run manually by::
 
-    dexbot run
+    dexbot-cli run
 
 It will ask for your wallet passphrase (that you provided when
 adding your private key using ``uptick addkey``).
