@@ -53,16 +53,15 @@ main() {
 	err "apt-cache not found: are you running Ubuntu/Debian?"
     fi
     need_cmd apt-get
-    
-    apt-cache show libssl-dev > /dev/null 2> /dev/null
+    ensure apt-get update
+    apt-cache show python3-pip > /dev/null 2> /dev/null
     if [ "$?" != 0 ] ; then
 	echo "Some packages aren't available"
 	echo "trying to enable the Ubuntu 'universe repository"
-	ensure apt-get update
 	ensure apt-get install -y software-properties-common
 	ensure add-apt-repository universe
 	ensure apt-get update
-	apt-cache show libssl-dev > /dev/null 2> /dev/null
+	apt-cache show pythonn3-pip > /dev/null 2>&1
 	if [ "$?" != 0 ] ; then
 	    err "universe repository still not available"
 	fi
@@ -81,8 +80,8 @@ main() {
     echo Look for the private key in Wallet Import Format \(WIF\), it’s a \"5\" followed
     echo by a long list of letters. Select, copy and paste this into the screen where
     echo uptick asks for the key.
-    ensure su $SUDO_USER -c "uptick addkey"
-    ensure su $SUDO_USER -c "dexbot-cli configure"
+    ensure su $SUDO_USER -c "uptick addkey" < /dev/tty
+    ensure su $SUDO_USER -c "dexbot-cli configure" < /dev/tty
 }
 
 say() {
