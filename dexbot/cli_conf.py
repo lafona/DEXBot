@@ -34,6 +34,12 @@ STRATEGIES = [
     {'tag': 'relative',
      'class': 'dexbot.strategies.relative_orders',
      'name': 'Relative Orders'},
+    {'tag': 'follow',
+     'class': 'dexbot.strategies.follow_orders',
+     'name': 'Follow Orders (based on Relative Orders)'},
+    {'tag': 'ataxia',
+     'class': 'dexbot.strategies.ataxia',
+     'name': 'Ataxia (based on Staggered Orders'},
     {'tag': 'stagger',
      'class': 'dexbot.strategies.staggered_orders',
      'name': 'Staggered Orders'}]
