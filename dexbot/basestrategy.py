@@ -454,7 +454,6 @@ class BaseStrategy(Storage, StateMachine, Events):
             *args,
             **kwargs
         )
-        self.log.debug('Placed buy order {}'.format(buy_transaction))
         buy_order = self.get_order(buy_transaction['orderid'], return_none=return_none)
         if buy_order and buy_order['deleted']:
             # The API doesn't return data on orders that don't exist
@@ -493,7 +492,6 @@ class BaseStrategy(Storage, StateMachine, Events):
             *args,
             **kwargs
         )
-        self.log.debug('Placed sell order {}'.format(sell_transaction))
         sell_order = self.get_order(sell_transaction['orderid'], return_none=return_none)
         if sell_order and sell_order['deleted']:
             # The API doesn't return data on orders that don't exist
