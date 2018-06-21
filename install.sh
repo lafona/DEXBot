@@ -37,10 +37,10 @@ main() {
     fi
 
     if [ "$USER" != "root" ] ; then
-	err "you need to run via sudo"
+	err "you need to use sudo"
     fi
     if [ -z "$SUDO_USER" ] ; then
-	err "you need to run via sudo"
+	err "you need to use sudo"
     fi
     if [ "$SUDO_USER" == "root" ] ; then
 	err "you need to run as an ordinary user"
@@ -61,17 +61,16 @@ main() {
 	ensure apt-get install -y software-properties-common
 	ensure add-apt-repository universe
 	ensure apt-get update
-	apt-cache show pythonn3-pip > /dev/null 2>&1
+	apt-cache show python3-pip > /dev/null 2>&1
 	if [ "$?" != 0 ] ; then
 	    err "universe repository still not available"
 	fi
     fi
     
     ensure apt-get install -y gcc libssl-dev python3-pip python3-dev build-essential python3-setuptools python3-wheel whiptail
-
     ensure sudo -H pip3 install https://github.com/Codaone/DEXBot/archive/master.zip
     echo
-    echo Next the 'uptick' program is being used to import private keys
+    echo Now the 'uptick' program is being used to import private keys
     echo uptick will ask you first for a passphrase to protect private keys stored in
     echo its wallet. This has no relation to any passphrase used in the web wallet.
     echo You can get your private key from the BitShares Web Wallet: click the menu
