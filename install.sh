@@ -15,9 +15,6 @@
 set -u
 
 main() {
-    need_cmd uname
-    need_cmd curl
-
     
     if [ -t 2 ]; then
         if [ "${TERM+set}" = 'set' ]; then
@@ -37,17 +34,8 @@ main() {
     fi
 
     if [ "$USER" != "root" ] ; then
-	err "you need to use sudo"
+	err "you need to run as root"
     fi
-    if [ -z "$SUDO_USER" ] ; then
-	err "you need to use sudo"
-    fi
-    if [ "$SUDO_USER" == "root" ] ; then
-	err "you need to run as an ordinary user"
-    fi
-
-    need_cmd loginctl
-    ensure loginctl enable-linger $SUDO_USER
 
     if [ ! -x /usr/bin/apt-cache ] ; then
 	err "apt-cache not found: are you running Ubuntu/Debian?"
@@ -67,21 +55,23 @@ main() {
 	fi
     fi
     
-    ensure apt-get install -y gcc libssl-dev python3-pip python3-dev build-essential python3-setuptools python3-wheel whiptail
-    ensure sudo -H pip3 install https://github.com/Codaone/DEXBot/archive/master.zip
+    ensure apt-get install -y gcc libssl-dev python3-pip python3-dev build-essential python3-setuptools python3-wheel whiptail passwd systemd
+
+    need_cmd pip3
+    ensure pip3 install https://github.com/ihaywood3/DEXBot/archive/master.zip
+
+    need_cmd useradd
+    need_cmd passwd
+    need_cmd loginctl
+    useradd dexbot -s /usr/local/bin/dexbot-shell
     echo
-    echo Now the 'uptick' program is being used to import private keys
-    echo uptick will ask you first for a passphrase to protect private keys stored in
-    echo its wallet. This has no relation to any passphrase used in the web wallet.
-    echo You can get your private key from the BitShares Web Wallet: click the menu
-    echo on the top right, then \"Settings\", \"Accounts\", \"View keys\", then tab
-    echo \"Owner Permissions\", click on the public key, then \"Show\".
-    echo Look for the private key in Wallet Import Format \(WIF\), it’s a \"5\" followed
-    echo by a long list of letters. Select, copy and paste this into the screen where
-    echo uptick asks for the key.
-    ensure su $SUDO_USER -c "uptick addkey" < /dev/tty
-    echo Configuration complete, next step is use \"dexbot-cli configure\" to set up
-    echo strategies
+    echo Please enter a new password for the \"dexbot\" account on this computer.
+    passwd dexbot
+    ensure loginctl enable-linger dexbot
+
+    echo Configuration complete, now logout, and log in again as user dexbot
+    echo using the password you provided above. The dexbot configuration
+    echo will continue at that point.
 }
 
 say() {
