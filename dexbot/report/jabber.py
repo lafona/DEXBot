@@ -29,7 +29,7 @@ class Reporter(sleekxmpp.ClientXMPP, dexbot.report.chat.ChatReporter):
             ConfigElement("commands", "bool", False,
                           "Set to allow bot to receive commands. UNDERSTAND SECURITY IMPLICATIONS FIRST", None)]
 
-    def __init__(self, recipient, jid, password, commands, worker_infrastructure):
+    def __init__(self, recipient, jid, password, worker_infrastructure, commands=False):
         sleekxmpp.ClientXMPP.__init__(self, jid, password)
         # The session_start event will be triggered when
         # the bot establishes its connection with the server

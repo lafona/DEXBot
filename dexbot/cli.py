@@ -100,6 +100,7 @@ def run(ctx):
                 log.debug("sdnotify not available")
         worker.run()
     except errors.NoWorkersAvailable:
+        worker.shutdown()
         sys.exit(70)  # 70= "Software error" in /usr/include/sysexts.h
     finally:
         if ctx.obj['pidfile']:
