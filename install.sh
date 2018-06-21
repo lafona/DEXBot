@@ -57,7 +57,7 @@ main() {
     apt-cache show python3-pip > /dev/null 2> /dev/null
     if [ "$?" != 0 ] ; then
 	echo "Some packages aren't available"
-	echo "trying to enable the Ubuntu 'universe repository"
+	echo "trying to enable the Ubuntu 'universe' repository"
 	ensure apt-get install -y software-properties-common
 	ensure add-apt-repository universe
 	ensure apt-get update
@@ -80,7 +80,8 @@ main() {
     echo by a long list of letters. Select, copy and paste this into the screen where
     echo uptick asks for the key.
     ensure su $SUDO_USER -c "uptick addkey" < /dev/tty
-    ensure su $SUDO_USER -c "dexbot-cli configure" < /dev/tty
+    echo Configuration complete, next step is use \"dexbot-cli configure\" to set up
+    echo strategies
 }
 
 say() {
