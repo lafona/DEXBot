@@ -6,6 +6,7 @@ from bitshares.amount import Amount
 import pudb
 
 from dexbot.basestrategy import BaseStrategy, ConfigElement
+from dexbot.errors import EmptyMarket
 from dexbot.qt_queue.idle_queue import idle_add
 
 
@@ -102,12 +103,39 @@ class Strategy(BaseStrategy):
         return (l, rl)
 
     @staticmethod
-    def spread_zone(spread, ticker):
-        bid = float(ticker['highestBid'])
-        ask = float(ticker['lowestAsk'])
-        centre = (ask + bid)/2
-        lowest_sell = centre * (1 + (spread/2))
-        highest_buy = centre * (1 - (spread/2))
+    def spread_zone(spread, market):
+        ticker = market.ticker()
+        spread = max(spread, 0.001)
+        if 'latest' in ticker and ticker['latest'] and float(ticker['latest']) > 0.0:
+            centre = float(ticker['latest'])
+            lowest_sell = centre * (1 + (spread/2))
+            highest_buy = centre * (1 - (spread/2))
+            # don't ever trade against the market
+            if 'highestBid' in ticker and ticker['highestBid']:
+                bid = float(ticker['highestBid'])
+                if bid > 0.0:
+                    lowest_sell = max(lowest_sell, bid)
+            if 'lowestAsk' in ticker and ticker['lowestAsk']:
+                ask = float(ticker['lowestAsk'])
+                if ask > 0.0:
+                    highest_buy = min(highest_buy, ask)
+        else:
+            # there's no latest price: ? we are bootstrapping
+            if 'highestBid' in ticker and ticker['highestBid'] and float(ticker['highestBid']) > 0.0:
+                if 'lowestAsk' in ticker and ticker['lowestAsk'] and float(ticker['lowestAsk']) > 0.0:
+                    # there's an orderbook, so take the average
+                    centre = (float(ticker['highestBid']) + float(ticker['lowestAsk']))/2
+                    lowest_sell = centre * (1 + (spread/2))
+                    highest_buy = centre * (1 - (spread/2))
+                else:
+                    lowest_sell = float(ticker['highestBid'])
+                    highest_buy = lowest_sell * (1 + spread)
+            elif 'lowestAsk' in ticker and ticker['lowestAsk'] and float(ticker['lowestAsk']) > 0.0:
+                highest_buy = float(ticker['lowestAsk'])
+                lowest_buy = highest_buy * (1 - spread)
+            else:
+                # market has no latest, no bids and no asks
+                raise errors.EmptyMarket()
         return (highest_buy, lowest_sell)
 
     def reassess(self, *args, **kwargs):
@@ -118,22 +146,12 @@ class Strategy(BaseStrategy):
 
         self.last_check = datetime.now()
         downladder, upladder = self.ladder()
-        self.log.debug("ladder is {}".format(repr(downladder)))
         new_order = True
         total_orders = 0
         while new_order:
             new_order = False
             self.account.refresh()
-            t = self.market.ticker()
-            if t['highestBid'] is None:
-                self.log.critical("no bid price available")
-                self.disabled = True
-                return None
-            if t['lowestAsk'] is None or float(t['lowestAsk']) == 0.0:
-                self.log.critical("no ask price available")
-                self.disabled = True
-                return None
-            highest_buy, lowest_sell = Strategy.spread_zone(self.spread, t)
+            highest_buy, lowest_sell = Strategy.spread_zone(self.spread, self.market)
             self.log.debug("highest_buy = {} lowest_sell = {}".format(highest_buy, lowest_sell))
             # do max one order on each side, then cycle outer loop (i.e. check back
             # with market whether things have shifted)
