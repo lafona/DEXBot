@@ -3,7 +3,6 @@ from datetime import datetime
 from datetime import timedelta
 
 from bitshares.amount import Amount
-import pudb
 
 from dexbot.basestrategy import BaseStrategy, ConfigElement
 from dexbot.errors import EmptyMarket
