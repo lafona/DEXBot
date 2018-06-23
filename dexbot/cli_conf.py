@@ -138,7 +138,8 @@ def setup_systemd(d, config, shell):
             pathlib.Path(path).mkdir(parents=True, exist_ok=True)
             password = d.prompt(
                 "The wallet password\n"
-                "NOTE: this will be saved on disc so the worker can run unattended. "
+                "this is not related to your web wallet password\n"
+                "NOTE: this will be saved on disc so the worker can run unattended.\n"
                 "This means anyone with access to this computer's files can spend all your money",
                 password=True)
 
@@ -151,7 +152,7 @@ def setup_systemd(d, config, shell):
                 fp.write(
                     SYSTEMD_SERVICE_FILE.format(
                         exe=exe,
-                        passwd=passwd,
+                        passwd=password,
                         homedir=os.path.expanduser("~")))
             # signal cli.py to set the unit up after writing config file
             config['systemd_status'] = 'install'
@@ -159,7 +160,7 @@ def setup_systemd(d, config, shell):
             if not bitshares_instance:
                 bitshares_instance = BitShares()
             if not bitshares_instance.wallet.created():
-                bitshares_instance.wallet.create(passwd)
+                bitshares_instance.wallet.create(password)
     else:
         config['systemd_status'] = 'reject'
 
@@ -229,6 +230,17 @@ def unlock_wallet(d, bitshares_instance):
                     sys.exit(1)
 
 
+def add_key(d, bitshares_instance):
+    if d.confirm("Do you want to enter a private key?"):
+        if not bitshares_instance:
+            bitshares_instance = BitShares()
+        if bitshares_instance.wallet.created():
+            unlock_wallet(d, bitshares_instance)
+        else:
+            bitshares_instance.wallet.create(d.prompt("Enter password for new wallet", password=True))
+        bitshares_instance.wallet.addPrivateKey(d.prompt("New private key in WIF format (begins with a \"5\")"))
+
+
 def configure_dexbot(config, shell=False):
     global bitshares_instance
     d = get_whiptail()
@@ -247,6 +259,7 @@ the program.
             if not d.confirm("Set up another worker?\n(DEXBot can run multiple workers in one instance)"):
                 break
         setup_systemd(d, config, shell)
+        add_key(d, bitshares_instance)
     else:
         menu = [('NEW', 'Create a new bot'),
                 ('DEL', 'Delete a bot'),
@@ -287,13 +300,7 @@ the program.
         elif action == 'PASSWD':
             os.system("passwd")
         elif action == 'KEY':
-            if not bitshares_instance:
-                bitshares_instance = BitShares()
-            if bitshares_instance.wallet.created():
-                unlock_wallet(d, bitshares_instance)
-            else:
-                bitshares_instance.wallet.create(d.prompt("Enter password for new wallet", password=True))
-            bitshares_instance.wallet.addPrivateKey(d.prompt("New private key in WIF format (begins with a \"5\")"))
+            add_key(d, bitshares_instance)
         elif action == 'WIPE':
             if not bitshares_instance:
                 bitshares_instance = BitShares()
