@@ -26,26 +26,51 @@ main() {
         fi
     fi
 
-    	
-    if $_ansi_escapes_are_valid; then
-        printf "\33[1minfo:\33[0m checking system\n" 1>&2
-    else
-        printf '%s\n' 'info: checking system' 1>&2
-    fi
-
     if [ "$USER" != "root" ] ; then
 	err "you need to run as root"
     fi
 
-    if [ ! -x /usr/bin/apt-cache ] ; then
-	err "apt-cache not found: are you running Ubuntu/Debian?"
-    fi
+    if [ -x /usr/bin/apt-cache ] ; then
+	info "Debian/Ubuntu type system detected"
+	install_deb
+    else
+	if [ -x /usr/bin/yum ] ; then
+	    info "RedHat/CentOS/Fedora type system detected"
+	    install_yum
+	else
+	    if [ -x /usr/bin/pacman ] ; then
+		info "Arch system detected"
+		install_arch
+	    else
+		err "cannot detect system type: no apt-get, yum or pacman"
+	    fi
+	fi
+    fi	    
+
+    need_cmd pip3
+    ensure pip3 install https://github.com/ihaywood3/DEXBot/archive/master.zip
+
+    need_cmd useradd
+    need_cmd passwd
+    need_cmd loginctl
+    useradd dexbot -s /usr/local/bin/dexbot-shell
+    echo
+    info "Please enter a new password for the \"dexbot\" account on this computer."
+    passwd dexbot
+    ensure loginctl enable-linger dexbot
+
+    success "Configuration complete, now logout, and log in again as user dexbot"
+    success "using the password you provided above. The dexbot configuration"
+    success "will continue at that point."
+}
+
+install_deb() {
     need_cmd apt-get
     ensure apt-get update
     apt-cache show python3-pip > /dev/null 2> /dev/null
     if [ "$?" != 0 ] ; then
-	echo "Some packages aren't available"
-	echo "trying to enable the Ubuntu 'universe' repository"
+	warn "Some packages aren't available"
+	warn "trying to enable the Ubuntu 'universe' repository"
 	ensure apt-get install -y software-properties-common
 	ensure add-apt-repository universe
 	ensure apt-get update
@@ -56,31 +81,48 @@ main() {
     fi
     
     ensure apt-get install -y gcc libssl-dev python3-pip python3-dev build-essential python3-setuptools python3-wheel whiptail passwd systemd
-
-    need_cmd pip3
-    ensure pip3 install https://github.com/ihaywood3/DEXBot/archive/master.zip
-
-    need_cmd useradd
-    need_cmd passwd
-    need_cmd loginctl
-    useradd dexbot -s /usr/local/bin/dexbot-shell
-    echo
-    echo Please enter a new password for the \"dexbot\" account on this computer.
-    passwd dexbot
-    ensure loginctl enable-linger dexbot
-
-    echo Configuration complete, now logout, and log in again as user dexbot
-    echo using the password you provided above. The dexbot configuration
-    echo will continue at that point.
 }
 
-say() {
-    echo "dexbot: $1"
+install_yum() {
+    ensure yum install -y gcc openssl-devel python3-pip python3-devel newt
+}
+
+install_arch() {
+    ensure pacman -S libnewt python-pip gcc
+}
+
+info() {       	
+    if $_ansi_escapes_are_valid; then
+        printf "\33[1minfo:\33[0m %s\n" $1 1>&2
+    else
+        printf 'info: %s\n' $1 1>&2
+    fi
 }
 
 err() {
-    say "ERROR: $1" >&2
+    if $_ansi_escapes_are_valid; then
+        printf "\33[1m\33[31mERROR:\33[0m %s\n" $1 1>&2
+    else
+        printf 'ERROR: %s\n' $1 1>&2
+    fi    	
+
     exit 1
+}
+
+warn() {
+    if $_ansi_escapes_are_valid; then
+        printf "\33[1m\33[36mWARNING: \33[0m %s\n" $1 1>&2
+    else
+        printf 'WARNING: %s\n' $1 1>&2
+    fi
+}
+
+success() {
+    if $_ansi_escapes_are_valid; then
+        printf "\33[1m\33[32mSUCCESS: \33[0m %s\n" $1 1>&2
+    else
+        printf 'SUCCESS: %s\n' $1 1>&2
+    fi
 }
 
 need_cmd() {
