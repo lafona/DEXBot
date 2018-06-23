@@ -136,7 +136,6 @@ def shell():
     config = Config()
     while True:
         configure_dexbot(config, True)
-        config.save_config()
         if config['systemd_status'] == 'installed':
             # we are already installed
             os.system("systemctl --user restart dexbot")
@@ -144,6 +143,7 @@ def shell():
             os.system("systemctl --user enable dexbot")
             os.system("systemctl --user start dexbot")
             config['systemd_status'] = 'installed'
+        config.save_config()
 
 
 def worker_job(worker, job):
