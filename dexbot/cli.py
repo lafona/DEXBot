@@ -133,14 +133,10 @@ def shell():
     if len(sys.argv) > 2 and sys.argv[1] == '-c':
         # let users who Know What They Are Doing get to the shell of their choice
         os.execl(sys.argv[2], sys.argv[2])
-    cfg_file = config_file
-    assert os.path.exists(cfg_file), "no config file"
-    with open(cfg_file) as fd:
-        config = yaml.safe_load(fd)
+    config = Config()
     while True:
         configure_dexbot(config, True)
-        with open(cfg_file, "w") as fd:
-            yaml.dump(config, fd, default_flow_style=False)
+        config.save_config()
         if config['systemd_status'] == 'installed':
             # we are already installed
             os.system("systemctl --user restart dexbot")
