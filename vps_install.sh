@@ -56,7 +56,7 @@ main() {
     useradd dexbot -s /usr/local/bin/dexbot-shell
     echo
     info "Please enter a new password for the \"dexbot\" account on this computer."
-    passwd dexbot
+    ensure passwd dexbot < /dev/tty
     ensure loginctl enable-linger dexbot
 
     success "Configuration complete, now logout, and log in again as user dexbot"
@@ -93,17 +93,17 @@ install_arch() {
 
 info() {       	
     if $_ansi_escapes_are_valid; then
-        printf "\33[1minfo:\33[0m %s\n" $1 1>&2
+        printf "\33[1minfo:\33[0m %s\n" "$1" 1>&2
     else
-        printf 'info: %s\n' $1 1>&2
+        printf 'info: %s\n' "$1" 1>&2
     fi
 }
 
 err() {
     if $_ansi_escapes_are_valid; then
-        printf "\33[1m\33[31mERROR:\33[0m %s\n" $1 1>&2
+        printf "\33[1m\33[31mERROR:\33[0m %s\n" "$1" 1>&2
     else
-        printf 'ERROR: %s\n' $1 1>&2
+        printf 'ERROR: %s\n' "$1" 1>&2
     fi    	
 
     exit 1
@@ -111,17 +111,17 @@ err() {
 
 warn() {
     if $_ansi_escapes_are_valid; then
-        printf "\33[1m\33[36mWARNING: \33[0m %s\n" $1 1>&2
+        printf "\33[1m\33[36mWARNING: \33[0m %s\n" "$1" 1>&2
     else
-        printf 'WARNING: %s\n' $1 1>&2
+        printf 'WARNING: %s\n' "$1" 1>&2
     fi
 }
 
 success() {
     if $_ansi_escapes_are_valid; then
-        printf "\33[1m\33[32mSUCCESS: \33[0m %s\n" $1 1>&2
+        printf "\33[1m\33[32mSUCCESS: \33[0m %s\n" "$1" 1>&2
     else
-        printf 'SUCCESS: %s\n' $1 1>&2
+        printf 'SUCCESS: %s\n' "$1" 1>&2
     fi
 }
 
