@@ -125,6 +125,7 @@ def dexbot_service_running():
 
 
 def setup_systemd(d, config, shell):
+    global bitshares_instance
     if not os.path.exists("/etc/systemd"):
         return  # No working systemd
 
