@@ -131,7 +131,8 @@ def setup_systemd(d, config, shell):
     # if shell systemd is automatic
     if shell or d.confirm(
             "Do you want to install dexbot as a background (daemon) process?"):
-
+        # signal cli.py to set the unit up after writing config file
+        config['systemd_status'] = 'install'
         if not os.path.exists(SYSTEMD_SERVICE_NAME):
             path = '~/.local/share/systemd/user'
             path = os.path.expanduser(path)
@@ -154,8 +155,6 @@ def setup_systemd(d, config, shell):
                         exe=exe,
                         passwd=password,
                         homedir=os.path.expanduser("~")))
-            # signal cli.py to set the unit up after writing config file
-            config['systemd_status'] = 'install'
             # actually set up the wallet if required
             if not bitshares_instance:
                 bitshares_instance = BitShares()
