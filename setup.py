@@ -11,6 +11,7 @@ install_requires = [
     "sqlalchemy",
     "appdirs",
     "sdnotify",
+    "matplotlib",
     "ruamel.yaml>=0.15.37"
 ]
 
@@ -58,14 +59,6 @@ setup(
     entry_points={
         'console_scripts': console_scripts
     },
-    install_requires=[
-        "bitshares==0.1.16",
-        "uptick>=0.1.4",
-        "click",
-        "sqlalchemy",
-        "appdirs",
-        "ruamel.yaml>=0.15.37",
-        "sdnotify"
-    ],
+    install_requires=install_requires,
     include_package_data=True,
 )
