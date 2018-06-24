@@ -267,7 +267,9 @@ the program.
                 ('REPORT', 'Configure reporting'),
                 ('NODE', 'Set the BitShares node'),
                 ('KEY', 'Add a private key'),
-                ('WIPE', 'Wipe all private keys')]
+                ('WIPE', 'Wipe all private keys'),
+                ('LOG', 'Show the dexbot event log'),
+                ('SHELL', 'Escape to the Linux command shell')]
         if shell:
             menu.extend([('PASSWD', 'Set the account password'),
                          ('LOGOUT', 'Logout of the server')])
@@ -295,10 +297,6 @@ the program.
             config['node'] = d.prompt(
                 "BitShares node to use",
                 default=config['node'])
-        elif action == 'LOGOUT':
-            sys.exit()
-        elif action == 'PASSWD':
-            os.system("passwd")
         elif action == 'KEY':
             add_key(d, bitshares_instance)
         elif action == 'WIPE':
@@ -310,6 +308,14 @@ the program.
                     bitshares_instance.wallet.wipe(True)
             else:
                 d.alert("No wallet to wipe")
+        elif action == 'LOG':
+            os.system("journalctl --user-unit=dexbot -n 1000 -e")
+        elif action == 'LOGOUT':
+            sys.exit()
+        elif action == 'PASSWD':
+            os.system("passwd")
+        elif action == 'SHELL':
+            os.system("/bin/bash")
         elif action == 'QUIT':
             pass
         else:

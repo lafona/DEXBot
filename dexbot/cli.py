@@ -130,9 +130,6 @@ def configure(ctx):
 def shell():
     """ Run dexbot as a shell
     """
-    if len(sys.argv) > 2 and sys.argv[1] == '-c':
-        # let users who Know What They Are Doing get to the shell of their choice
-        os.execl(sys.argv[2], sys.argv[2])
     config = Config()
     while True:
         configure_dexbot(config, True)

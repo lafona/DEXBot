@@ -53,7 +53,7 @@ main() {
     need_cmd useradd
     need_cmd passwd
     need_cmd loginctl
-    ensure useradd -m -s /usr/local/bin/dexbot-shell dexbot
+    ensure useradd -m -s /usr/local/bin/dexbot-shell -G systemd-journal dexbot
     echo
     info "Please enter a new password for the \"dexbot\" account on this computer."
     ensure passwd dexbot < /dev/tty
