@@ -260,6 +260,7 @@ the program.
                 break
         setup_systemd(d, config, shell)
         add_key(d, bitshares_instance)
+        return True
     else:
         menu = [('NEW', 'Create a new bot'),
                 ('DEL', 'Delete a bot'),
@@ -282,23 +283,29 @@ the program.
             bitshares_instance = BitShares(config['node'])
             strategy = BaseStrategy(worker_name, bitshares_instance=bitshares_instance)
             strategy.purge()
+            return True
         elif action == 'DEL':
             worker_name = d.menu("Select worker to delete", [(i, i) for i in workers])
             del config['workers'][worker_name]
             bitshares_instance = BitShares(config['node'])
             strategy = BaseStrategy(worker_name, bitshares_instance=bitshares_instance)
             strategy.purge()
+            return True
         elif action == 'NEW':
             txt = d.prompt("Your name for the new worker")
             config['workers'][txt] = configure_worker(d, {})
+            return True
         elif action == 'REPORT':
             setup_reporter(d, config)
+            return True
         elif action == 'NODE':
             config['node'] = d.prompt(
                 "BitShares node to use",
                 default=config['node'])
+            return True
         elif action == 'KEY':
             add_key(d, bitshares_instance)
+            return False
         elif action == 'WIPE':
             if not bitshares_instance:
                 bitshares_instance = BitShares()
@@ -308,17 +315,20 @@ the program.
                     bitshares_instance.wallet.wipe(True)
             else:
                 d.alert("No wallet to wipe")
+            return False
         elif action == 'LOG':
             os.system("journalctl --user-unit=dexbot -n 1000 -e")
+            return False
         elif action == 'LOGOUT':
             sys.exit()
         elif action == 'PASSWD':
             os.system("passwd")
+            return False
         elif action == 'SHELL':
             os.system("/bin/bash")
+            return False
         elif action == 'QUIT':
-            pass
+            return False
         else:
             d.prompt("Unknown command {}".format(action))
-    d.clear()
-    return config
+            return False

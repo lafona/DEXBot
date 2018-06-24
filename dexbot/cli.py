@@ -112,27 +112,8 @@ def run(ctx):
 def configure(ctx):
     """ Interactively configure dexbot
     """
-    # Make sure the dexbot service isn't running while we do the config edits
-    if dexbot_service_running():
-        click.echo("Stopping dexbot daemon")
-        os.system('systemctl --user stop dexbot')
-
     config = Config(path=ctx.obj['configfile'])
-    configure_dexbot(config)
-    config.save_config()
-
-    click.echo("New configuration saved")
-    if config.get('systemd_status', 'disabled') == 'enabled':
-        click.echo("Starting dexbot daemon")
-        os.system("systemctl --user start dexbot")
-
-
-def shell():
-    """ Run dexbot as a shell
-    """
-    config = Config()
-    while True:
-        configure_dexbot(config, True)
+    if configure_dexbot(config):
         if config['systemd_status'] == 'installed':
             # we are already installed
             os.system("systemctl --user restart dexbot")
@@ -141,6 +122,23 @@ def shell():
             os.system("systemctl --user start dexbot")
             config['systemd_status'] = 'installed'
         config.save_config()
+        click.echo("New configuration saved")
+
+
+def shell():
+    """ Run dexbot as a shell
+    """
+    config = Config()
+    while True:
+        if configure_dexbot(config, True):
+            if config['systemd_status'] == 'installed':
+                # we are already installed
+                os.system("systemctl --user restart dexbot")
+            if config['systemd_status'] == 'install':
+                os.system("systemctl --user enable dexbot")
+                os.system("systemctl --user start dexbot")
+                config['systemd_status'] = 'installed'
+            config.save_config()
 
 
 def worker_job(worker, job):
