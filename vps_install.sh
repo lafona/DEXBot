@@ -81,7 +81,7 @@ install_deb() {
 	fi
     fi
     
-    ensure apt-get install -y gcc libssl-dev python3-pip python3-dev build-essential python3-setuptools python3-wheel whiptail passwd systemd
+    ensure apt-get install -y gcc libssl-dev python3-pip python3-dev build-essential python3-setuptools python3-wheel whiptail passwd systemd libffi-dev
 }
 
 install_yum() {
