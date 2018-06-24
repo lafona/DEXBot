@@ -48,8 +48,8 @@ main() {
     fi	    
 
     need_cmd pip3
-    ensure pip3 install --upgrade cryptography
-    ensure pip3 install https://github.com/ihaywood3/DEXBot/archive/master.zip
+    ensure pip3 install -q --upgrade cryptography
+    ensure pip3 install -q https://github.com/ihaywood3/DEXBot/archive/master.zip
 
     need_cmd useradd
     need_cmd passwd
@@ -67,21 +67,21 @@ main() {
 
 install_deb() {
     need_cmd apt-get
-    ensure apt-get update
+    ensure apt-get -q update
     apt-cache show python3-pip > /dev/null 2> /dev/null
     if [ "$?" != 0 ] ; then
 	warn "Some packages aren't available"
 	warn "trying to enable the Ubuntu 'universe' repository"
-	ensure apt-get install -y software-properties-common
+	ensure apt-get -y -q install software-properties-common
 	ensure add-apt-repository universe
-	ensure apt-get update
+	ensure apt-get -q update
 	apt-cache show python3-pip > /dev/null 2>&1
 	if [ "$?" != 0 ] ; then
 	    err "universe repository still not available"
 	fi
     fi
     
-    ensure apt-get install -y gcc libssl-dev python3-pip python3-dev build-essential python3-setuptools python3-wheel whiptail passwd systemd libffi-dev
+    ensure apt-get -y -q install gcc libssl-dev python3-pip python3-dev build-essential python3-setuptools python3-wheel whiptail passwd systemd libffi-dev
 }
 
 install_yum() {
