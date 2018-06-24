@@ -72,10 +72,10 @@ def verbose(f):
             log.setLevel(getattr(logging, verbosity.upper()))
             log.addHandler(ch)
         # has the user set logging in the config
-        if "logging" in ctx.config:
-            # this is defined in
-            # https://docs.python.org/3.4/library/logging.config.html#logging-config-dictschema
-            logging.config.dictConfig(ctx.config['logging'])
+        # if "logging" in ctx.config:
+        #    # this is defined in
+        #    # https://docs.python.org/3.4/library/logging.config.html#logging-config-dictschema
+        #    logging.config.dictConfig(ctx.config['logging'])
         return ctx.invoke(f, *args, **kwargs)
     return update_wrapper(new_func, f)
 

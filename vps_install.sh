@@ -48,6 +48,7 @@ main() {
     fi	    
 
     need_cmd pip3
+    ensure pip3 install --upgrade cryptography
     ensure pip3 install https://github.com/ihaywood3/DEXBot/archive/master.zip
 
     need_cmd useradd

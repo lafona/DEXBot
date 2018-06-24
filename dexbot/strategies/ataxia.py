@@ -24,12 +24,12 @@ class Strategy(BaseStrategy):
                 'The percentage difference between buy and sell (Spread)', (0.0, None)),
             ConfigElement(
                 'increment', 'float', 1.0,
-                'The percentage difference between staggered orders (Increment)', (0.5, None)),
+                'The percentage difference between staggered orders (Increment)', (0.1, None)),
             ConfigElement(
-                'upper_bound', 'float', 1.0,
+                'upper_bound', 'float', 10.0,
                 'The top price in the range', (0.0, None)),
             ConfigElement(
-                'lower_bound', 'float', 1000.0,
+                'lower_bound', 'float', 0.0,
                 'The bottom price in the range', (0.0, None))
         ]
 
