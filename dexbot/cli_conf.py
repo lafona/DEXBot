@@ -247,14 +247,11 @@ def configure_dexbot(config, shell=False):
     workers = config.get('workers', {})
     if len(workers) == 0:
         d.view_text("""Welcome to the DEXBot text-based configuration.
-You will be asked to set up at least one bot, this will then run
-in the background.
-You can use the arrow keys and RETURN to select buttons in these
-screens, the mouse does not work. Selecting Cancel will exit
-the program.
+You will be asked to set up at least one bot, this will then run in the background.
+You can use the arrow keys or TAB to move between buttons, and RETURN to select, the mouse does not work. Use Space to select an item in a list. Selecting Cancel will exit the program.
 """)
         while True:
-            txt = d.prompt("Your name for the worker")
+            txt = d.prompt("Your name for the new worker")
             config['workers'] = {txt: configure_worker(d, {})}
             if not d.confirm("Set up another worker?\n(DEXBot can run multiple workers in one instance)"):
                 break
@@ -269,25 +266,29 @@ the program.
                 ('NODE', 'Set the BitShares node'),
                 ('KEY', 'Add a private key'),
                 ('WIPE', 'Wipe all private keys'),
-                ('LOG', 'Show the dexbot event log'),
+                ('LOG', 'Show the DEXBot event log'),
                 ('SHELL', 'Escape to the Linux command shell')]
         if shell:
             menu.extend([('PASSWD', 'Set the account password'),
                          ('LOGOUT', 'Logout of the server')])
         else:
             menu.append(('QUIT', 'Quit without saving'))
-        action = d.menu("You have an existing configuration.\nSelect an action:", menu)
+        action = d.menu("Select an action:", menu)
         if action == 'EDIT':
             worker_name = d.menu("Select worker to edit", [(i, i) for i in workers])
             config['workers'][worker_name] = configure_worker(d, config['workers'][worker_name])
-            bitshares_instance = BitShares(config['node'])
             strategy = BaseStrategy(worker_name, bitshares_instance=bitshares_instance)
+            if not bitshares_instance:
+                bitshares_instance = BitShares(config['node'])
+            unlock_wallet(d, bitshares_instance)
             strategy.purge()
             return True
         elif action == 'DEL':
             worker_name = d.menu("Select worker to delete", [(i, i) for i in workers])
             del config['workers'][worker_name]
-            bitshares_instance = BitShares(config['node'])
+            if not bitshares_instance:
+                bitshares_instance = BitShares(config['node'])
+            unlock_wallet(d, bitshares_instance)
             strategy = BaseStrategy(worker_name, bitshares_instance=bitshares_instance)
             strategy.purge()
             return True

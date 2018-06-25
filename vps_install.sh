@@ -48,8 +48,9 @@ main() {
     fi	    
 
     need_cmd pip3
-    ensure pip3 install -q --upgrade cryptography
-    ensure pip3 install -q https://github.com/ihaywood3/DEXBot/archive/master.zip
+    info "installing Python packages"
+    ensure pip3 install -q --upgrade cryptography > /dev/null
+    ensure pip3 install -q https://github.com/ihaywood3/DEXBot/archive/master.zip > /dev/null
 
     need_cmd useradd
     need_cmd passwd
@@ -80,8 +81,8 @@ install_deb() {
 	    err "universe repository still not available"
 	fi
     fi
-    
-    ensure apt-get -y -q install gcc libssl-dev python3-pip python3-dev build-essential python3-setuptools python3-wheel whiptail passwd systemd libffi-dev
+    info "installing packages"
+    ensure apt-get -y -qq install gcc libssl-dev python3-pip python3-dev build-essential python3-setuptools python3-wheel whiptail passwd systemd libffi-dev
 }
 
 install_yum() {
