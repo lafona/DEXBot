@@ -49,8 +49,8 @@ main() {
 
     need_cmd pip3
     info "installing Python packages"
-    ensure pip3 install -q --upgrade cryptography > /dev/null
-    ensure pip3 install -q https://github.com/ihaywood3/DEXBot/archive/master.zip > /dev/null
+    ensure pip3 -q install --upgrade cryptography
+    ensure pip3 -q install https://github.com/ihaywood3/DEXBot/archive/master.zip
 
     need_cmd useradd
     need_cmd passwd
@@ -68,14 +68,14 @@ main() {
 
 install_deb() {
     need_cmd apt-get
-    ensure apt-get -q update
+    ensure apt-get -qq update
     apt-cache show python3-pip > /dev/null 2> /dev/null
     if [ "$?" != 0 ] ; then
 	warn "Some packages aren't available"
 	warn "trying to enable the Ubuntu 'universe' repository"
-	ensure apt-get -y -q install software-properties-common
+	ensure apt-get -y -qq install software-properties-common
 	ensure add-apt-repository universe
-	ensure apt-get -q update
+	ensure apt-get -qq update
 	apt-cache show python3-pip > /dev/null 2>&1
 	if [ "$?" != 0 ] ; then
 	    err "universe repository still not available"
