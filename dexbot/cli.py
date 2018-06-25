@@ -116,12 +116,13 @@ def configure(ctx):
     if configure_dexbot(config):
         if config['systemd_status'] == 'installed':
             # we are already installed
+            config.save_config()
             os.system("systemctl --user restart dexbot")
         if config['systemd_status'] == 'install':
+            config['systemd_status'] = 'installed'
+            config.save_config()
             os.system("systemctl --user enable dexbot")
             os.system("systemctl --user start dexbot")
-            config['systemd_status'] = 'installed'
-        config.save_config()
         click.echo("New configuration saved")
 
 
@@ -132,13 +133,14 @@ def shell():
     while True:
         if configure_dexbot(config, True):
             if config['systemd_status'] == 'installed':
+                config.save_config()
                 # we are already installed
                 os.system("systemctl --user restart dexbot")
             if config['systemd_status'] == 'install':
+                config['systemd_status'] = 'installed'
+                config.save_config()
                 os.system("systemctl --user enable dexbot")
                 os.system("systemctl --user start dexbot")
-                config['systemd_status'] = 'installed'
-            config.save_config()
 
 
 def worker_job(worker, job):
